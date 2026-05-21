@@ -21,34 +21,20 @@
     const { useState, useEffect, useRef, useCallback } = React;
 
     // ─── Supabase client (plug in your URL + anon key) ───────────────────────────
-    // FIX 1: Cleaned base URL (removed trailing /rest/v1/ to prevent duplication)
     const SUPABASE_URL = "https://wflbkylzmedfvpbtosgg.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_Xx69UKocPcHChda3ea76JA_mguKTk4Z";
 
     async function supaFetch(path, opts = {}) {
-      // Defensively strip any trailing '/rest/v1/' from the base URL if accidentally left in
-      const baseUrl = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "");
-
-      const headers = {
-        apikey: SUPABASE_ANON_KEY,
-        "Content-Type": "application/json",
-        Prefer: opts.prefer || "return=representation",
-        ...opts.headers,
-      };
-
-      // FIX 2: Handle key formatting safely.
-      // - Legacy tokens starting with 'eyJ' are JWTs and require a Bearer Authorization header.
-      // - Modern keys starting with 'sb_publishable_' are opaque and will throw a 401 
-      //   if passed under 'Bearer' without a signed-in user session. Omit it for public calls.
-      if (SUPABASE_ANON_KEY.startsWith("eyJ") && !headers.Authorization) {
-        headers.Authorization = `Bearer ${SUPABASE_ANON_KEY}`;
-      }
-
-      const res = await fetch(`${baseUrl}/rest/v1/${path}`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: opts.prefer || "return=representation",
+          ...opts.headers,
+        },
         ...opts,
-        headers,
       });
-      
       if (!res.ok) throw new Error(await res.text());
       const text = await res.text();
       return text ? JSON.parse(text) : null;
