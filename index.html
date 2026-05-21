@@ -87,10 +87,17 @@
     const POI_QUALITY = { excellent: "✓✓", good: "✓", poor: "~", refused: "✗" };
 
     // ─── Utility helpers ──────────────────────────────────────────────────────────
-    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-    function fmtTime(s) {
-      const m = Math.floor(s / 60), sec = s % 60;
-      return `${m}:${sec.toString().padStart(2, "0")}`;
+    // Replaces the old uid() function to ensure strict Postgres UUID compliance
+    function generateUUID() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      // Fallback for older browsers or non-HTTPS file environments
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
     }
 
     function defaultBPSession() {
@@ -764,50 +771,62 @@
 
       const rankings = computeRankings(teams);
 
-     const saveSession = async () => {
+    const saveSession = async () => {
         setSaving(true);
         
-        // 1. Data for local storage (Frontend format)
+        const isNew = !editingId;
+        const sessionId = editingId || generateUUID();
+
+        // 1. Data payload optimized for your React state & Local Storage
         const sessionData = {
-          id: editingId || uid(),
+          id: sessionId,
           title: sessionTitle || `${mode} Session`,
-          mode, motion, round, teams, oaNotes, clashes,
+          mode, 
+          motion, 
+          round, 
+          teams, 
+          oaNotes, 
+          clashes,
           rankings: rankings.map(r => ({ id: r.id, total: r.total, autoRank: r.autoRank })),
           savedAt: new Date().toISOString(),
           created_at: new Date().toISOString(),
         };
 
-        // 2. Data for Supabase (Backend format mapped to your exact column names)
+        // 2. Data payload tailored EXACTLY to your Supabase SQL schema columns
         const dbPayload = {
-          id: sessionData.id,
+          id: sessionId,
           title: sessionData.title,
-          debate_mode: mode,       // Maps frontend 'mode' to backend 'debate_mode'
-          motion: sessionData.motion,
-          round: sessionData.round,
+          mode: mode,            // Matches column: mode (Type: debate_mode)
+          motion: sessionData.motion || "",
+          round: sessionData.round || "",
           teams: sessionData.teams,
-          oa_notes: oaNotes,       // Maps frontend 'oaNotes' to backend 'oa_notes'
-          clashes: sessionData.clashes,
           rankings: sessionData.rankings,
-          created_at: sessionData.created_at
+          clashes: sessionData.clashes,
+          oa_notes: oaNotes || "" // Matches column: oa_notes
+          // user_id is omitted completely here so it defaults safely to NULL
         };
 
         try {
           if (SUPABASE_URL !== "YOUR_SUPABASE_URL") {
-            if (editingId) {
-              await supaFetch(`debate_sessions?id=eq.${editingId}`, {
-                method: "PATCH", body: JSON.stringify(dbPayload), // Send dbPayload here!
+            if (!isNew) {
+              // Updating an existing record
+              await supaFetch(`debate_sessions?id=eq.${sessionId}`, {
+                method: "PATCH", 
+                body: JSON.stringify(dbPayload),
               });
             } else {
+              // Inserting a brand new record
               await supaFetch("debate_sessions", { 
-                method: "POST", body: JSON.stringify(dbPayload)   // And here!
+                method: "POST", 
+                body: JSON.stringify(dbPayload) 
               });
             }
           }
         } catch (e) { 
-          console.warn("Supabase save failed, using localStorage:", e); 
+          console.error("Supabase API save error:", e); 
         }
 
-        // 3. Save to local storage using the original frontend format
+        // 3. Sync tracking data to local storage configuration
         const existing = savedNotes.filter(n => n.id !== sessionData.id);
         persistNotes([sessionData, ...existing]);
         setEditingId(sessionData.id);
