@@ -764,8 +764,10 @@
 
       const rankings = computeRankings(teams);
 
-      const saveSession = async () => {
+     const saveSession = async () => {
         setSaving(true);
+        
+        // 1. Data for local storage (Frontend format)
         const sessionData = {
           id: editingId || uid(),
           title: sessionTitle || `${mode} Session`,
@@ -775,21 +777,41 @@
           created_at: new Date().toISOString(),
         };
 
+        // 2. Data for Supabase (Backend format mapped to your exact column names)
+        const dbPayload = {
+          id: sessionData.id,
+          title: sessionData.title,
+          debate_mode: mode,       // Maps frontend 'mode' to backend 'debate_mode'
+          motion: sessionData.motion,
+          round: sessionData.round,
+          teams: sessionData.teams,
+          oa_notes: oaNotes,       // Maps frontend 'oaNotes' to backend 'oa_notes'
+          clashes: sessionData.clashes,
+          rankings: sessionData.rankings,
+          created_at: sessionData.created_at
+        };
+
         try {
           if (SUPABASE_URL !== "YOUR_SUPABASE_URL") {
             if (editingId) {
               await supaFetch(`debate_sessions?id=eq.${editingId}`, {
-                method: "PATCH", body: JSON.stringify(sessionData),
+                method: "PATCH", body: JSON.stringify(dbPayload), // Send dbPayload here!
               });
             } else {
-              await supaFetch("debate_sessions", { method: "POST", body: JSON.stringify(sessionData) });
+              await supaFetch("debate_sessions", { 
+                method: "POST", body: JSON.stringify(dbPayload)   // And here!
+              });
             }
           }
-        } catch (e) { console.warn("Supabase save failed, using localStorage:", e); }
+        } catch (e) { 
+          console.warn("Supabase save failed, using localStorage:", e); 
+        }
 
+        // 3. Save to local storage using the original frontend format
         const existing = savedNotes.filter(n => n.id !== sessionData.id);
         persistNotes([sessionData, ...existing]);
         setEditingId(sessionData.id);
+        
         setSaveMsg("✓ Saved!");
         setSaving(false);
         setTimeout(() => setSaveMsg(""), 2500);
