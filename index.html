@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Adjudicator — Debate Judge Notes</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -108,16 +109,25 @@ button{cursor:pointer}
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
-// CONFIG — Supabase JS SDK (handles auth headers correctly)
+// CONFIG
 // ══════════════════════════════════════════════════════════════════════════════
-const SUPABASE_URL = "https://wflbkylzmedfvpbtosgg.supabase.co";
+const SUPABASE_URL     = "https://wflbkylzmedfvpbtosgg.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Xx69UKocPcHChda3ea76JA_mguKTk4Z";
-
-// Initialise the official client — this uses the publishable key correctly
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TABLE = "debate_sessions";
 
-// ── Convert app session → DB row (camelCase → snake_case) ────────────────────
+// SDK is loaded synchronously above — this will always succeed
+let db;
+try {
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch(e) {
+  console.error("Supabase SDK failed to init:", e);
+  db = null;
+}
+
+// Cloud reachability status — "unknown" | "online" | "offline"
+let cloudStatus = "unknown";
+
+// ── Convert app session → DB row ─────────────────────────────────────────────
 function sessionToDb(s) {
   return {
     id:       s.id,
@@ -132,7 +142,7 @@ function sessionToDb(s) {
   };
 }
 
-// ── Convert DB row → app session (snake_case → camelCase) ────────────────────
+// ── Convert DB row → app session ─────────────────────────────────────────────
 function dbToSession(row) {
   return {
     id:         row.id,
@@ -146,21 +156,26 @@ function dbToSession(row) {
     oaNotes:    row.oa_notes || "",
     savedAt:    row.updated_at || row.created_at || new Date().toISOString(),
     created_at: row.created_at || new Date().toISOString(),
+    storageType: "cloud",
   };
 }
 
-// ── Toast notification ────────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer = null;
 function showToast(msg, type) {
-  const existing = document.getElementById("adj-toast");
-  if (existing) existing.remove();
-  const colors = { success: "#4ade80", warn: "#f59e0b", error: "#f87171", info: "#818cf8" };
-  const col = colors[type] || colors.info;
-  const el = document.createElement("div");
-  el.id = "adj-toast";
-  el.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(10,10,20,0.97);border:1px solid ${col}50;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;color:${col};box-shadow:0 4px 24px rgba(0,0,0,0.6);white-space:nowrap;pointer-events:none;transition:opacity .3s`;
+  let el = document.getElementById("adj-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "adj-toast";
+    el.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;padding:8px 20px;border-radius:20px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:opacity .35s;pointer-events:none;white-space:nowrap";
+    document.body.appendChild(el);
+  }
+  const cols = { success:"#22c55e", warn:"#f59e0b", info:"#60a5fa", error:"#ef4444" };
+  const col = cols[type] || cols.info;
+  el.style.cssText += ";background:rgba(10,10,18,0.97);border:1px solid "+col+"55;color:"+col+";opacity:1";
   el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 2800);
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 3200);
 }
 
 
@@ -283,12 +298,14 @@ function computeRankings(teams){
 function teamIds(){ return S.mode==="BP"?BP_TEAMS.map(t=>t.id):AP_TEAMS.map(t=>t.id); }
 
 async function loadSaved() {
-  // 1. Load from localStorage immediately so the UI is instant
+  // 1. Show local immediately
   try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); } catch(e) { S.savedNotes = []; }
 
-  // 2. Fetch from Supabase using the JS SDK (handles auth correctly)
+  if (!db) { cloudStatus = "offline"; render(); return; }
+
+  // 2. Probe Supabase — a lightweight count query is enough to confirm reachability
   try {
-    showToast("☁️ Syncing from cloud…", "info");
+    showToast("☁️ Connecting to cloud…", "info");
     const { data, error } = await db
       .from(TABLE)
       .select("*")
@@ -296,80 +313,31 @@ async function loadSaved() {
 
     if (error) throw new Error(error.message);
 
+    cloudStatus = "online";
     if (data && data.length > 0) {
       const cloudNotes = data.map(dbToSession);
-      // Cloud wins for same id; keep any local-only sessions too
-      const cloudIds = new Set(cloudNotes.map(n => n.id));
-      const localOnly = S.savedNotes.filter(n => !cloudIds.has(n.id));
+      const cloudIds   = new Set(cloudNotes.map(n => n.id));
+      const localOnly  = S.savedNotes.filter(n => !cloudIds.has(n.id));
       S.savedNotes = [...cloudNotes, ...localOnly];
       localStorage.setItem("adj_sessions", JSON.stringify(S.savedNotes));
-      showToast("✓ Synced " + cloudNotes.length + " session" + (cloudNotes.length !== 1 ? "s" : "") + " from cloud", "success");
+      showToast("☁️ Synced " + cloudNotes.length + " session" + (cloudNotes.length !== 1 ? "s" : ""), "success");
     } else {
-      showToast("☁️ No cloud sessions yet", "info");
+      showToast("☁️ Cloud connected — no sessions yet", "success");
     }
     render();
   } catch(e) {
-    console.warn("Cloud sync failed:", e.message);
-    showToast("⚠ Cloud offline — showing local sessions", "warn");
+    cloudStatus = "offline";
+    console.error("Cloud sync error:", e.message);
+    showToast("⚠ Cloud unavailable — " + e.message.slice(0, 60), "warn");
     render();
   }
 }
+
 
 function persistSaved() {
   localStorage.setItem("adj_sessions", JSON.stringify(S.savedNotes));
 }
 
-// Convert DB row (snake_case) → app session (camelCase)
-function dbToSession(row) {
-  return {
-    id: row.id,
-    title: row.title,
-    mode: row.mode,
-    motion: row.motion,
-    round: row.round,
-    teams: row.teams,
-    clashes: row.clashes,
-    rankings: row.rankings,
-    oaNotes: row.oa_notes,
-    savedAt: row.updated_at || row.created_at,
-    created_at: row.created_at,
-  };
-}
-
-// Convert app session (camelCase) → DB row (snake_case)
-function sessionToDb(session) {
-  return {
-    id: session.id,
-    title: session.title || "",
-    mode: session.mode,
-    motion: session.motion || "",
-    round: session.round || "",
-    teams: session.teams || {},
-    clashes: session.clashes || {},
-    rankings: session.rankings || [],
-    oa_notes: session.oaNotes || "",
-  };
-}
-
-// Simple toast system
-let toastTimer = null;
-function showToast(msg, type) {
-  let el = document.getElementById("sync-toast");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "sync-toast";
-    el.style.cssText = "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:opacity .3s;pointer-events:none";
-    document.body.appendChild(el);
-  }
-  const colors = { success: "#22c55e", warn: "#f59e0b", info: "#60a5fa", error: "#ef4444" };
-  el.style.background = "rgba(10,10,15,0.95)";
-  el.style.border = "1px solid " + (colors[type] || "#60a5fa") + "50";
-  el.style.color = colors[type] || "#60a5fa";
-  el.style.opacity = "1";
-  el.textContent = msg;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 3000);
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TIMER
@@ -564,11 +532,18 @@ function renderSaved(){
 function renderSavedCard(note){
   const date=new Date(note.savedAt||note.created_at);
   const rankings=note.rankings||[];
+  const isCloud = note.storageType === "cloud";
+  const storageLabel = isCloud
+    ? `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.2);font-weight:700">☁️ Cloud</span>`
+    : `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.1);font-weight:700">💾 Local</span>`;
   return `
   <div class="saved-card">
     <div style="flex:1;min-width:0">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(note.title)}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:6px">${note.mode} · ${date.toLocaleDateString()} ${date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="font-size:15px;font-weight:700">${esc(note.title)}</div>
+        ${storageLabel}
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:6px">${note.mode} · ${note.round?"Round "+esc(note.round)+" · ":""}${date.toLocaleDateString()} ${date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
       ${note.motion?`<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:6px;font-style:italic">"${esc(note.motion)}"</div>`:""}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${rankings.slice(0,4).map((r,i)=>`<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${TEAM_COLORS[r.id]||"#818cf8"}18;color:${TEAM_COLORS[r.id]||"#818cf8"};font-weight:700">#${i+1} ${esc(r.id)}</span>`).join("")}
@@ -576,7 +551,7 @@ function renderSavedCard(note){
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
       <button class="btn btn-primary" onclick="openSaved('${esc(note.id)}')">Open</button>
-      <button class="btn btn-success" onclick="exportSession('${esc(note.id)}')">↓ Export</button>
+      <button class="btn btn-success" onclick="exportSession('${esc(note.id)}')">📄 PDF</button>
       <button class="btn btn-danger" onclick="deleteSession('${esc(note.id)}')">Delete</button>
     </div>
   </div>`;
@@ -588,11 +563,141 @@ function openSaved(id){
   if(note) loadSession(note);
 }
 function exportSession(id){
-  const note=S.savedNotes.find(n=>n.id===id); if(!note) return;
-  const blob=new Blob([JSON.stringify(note,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download=`${note.title}.json`; a.click();
-  URL.revokeObjectURL(url);
+  const note = S.savedNotes.find(n => n.id === id);
+  if (!note) return;
+  showToast("📄 Generating PDF…", "info");
+
+  const rankings = (note.rankings || []).sort((a,b) => a.autoRank - b.autoRank);
+  const RANK_EMOJI_E = ["🥇","🥈","🥉","4th"];
+  const tColors = { OG:"#818cf8", OO:"#fb923c", CG:"#4ade80", CO:"#f472b6", GOV:"#818cf8", OPP:"#fb923c" };
+  const date = new Date(note.savedAt || note.created_at).toLocaleString();
+
+  function teamBlock(teamId) {
+    const t = note.teams[teamId]; if (!t) return "";
+    const col = tColors[teamId] || "#818cf8";
+    const total = (t.speakers||[]).reduce((s,sp)=>s+Number(sp.score||0),0);
+    const poiLabel = {taken_excellent:"Excellent",taken_good:"Good",taken_poor:"Poor",refused:"Refused",offered:"Offered"};
+    return `
+      <div style="margin-bottom:24px;border:1px solid ${col}40;border-top:4px solid ${col};border-radius:10px;padding:16px;break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <span style="background:${col}20;color:${col};padding:2px 10px;border-radius:20px;font-weight:800;font-size:12px">${t.abbr}</span>
+            <span style="margin-left:8px;font-size:14px;font-weight:700;color:#000">${t.label}</span>
+          </div>
+          <div style="font-size:18px;font-weight:800;color:${col}">Σ ${total}</div>
+        </div>
+        ${(t.speakers||[]).map(sp=>{
+          const score=Number(sp.score||75);
+          const sCol=score>=83?"#16a34a":score>=73?"#d97706":score>=64?"#ea580c":"#dc2626";
+          const poisT=(sp.pois_taken||[]).reduce((acc,p)=>{acc[p]=(acc[p]||0)+1;return acc},{});
+          const poisO=(sp.pois_offered||[]).length;
+          return `
+          <div style="margin-bottom:10px;padding:10px;background:#f8f9fc;border-radius:8px;border-left:3px solid ${col}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+              <div>
+                <span style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px">${sp.role}</span>
+                ${sp.name?`<span style="margin-left:8px;font-weight:700;font-size:13px;color:#111">${sp.name}</span>`:""}
+              </div>
+              <span style="font-size:20px;font-weight:800;color:${sCol}">${score}</span>
+            </div>
+            ${Object.keys(poisT).length||poisO?`<div style="font-size:10px;color:#6b7280;margin-bottom:4px">POIs: ${Object.entries(poisT).map(([k,v])=>`${v}× ${poiLabel[k]||k}`).join(", ")}${poisO?` · ${poisO}× Offered`:""}</div>`:""}
+            ${sp.notes?`<div style="font-size:12px;color:#374151;line-height:1.5;white-space:pre-wrap">${sp.notes}</div>`:""}
+          </div>`;
+        }).join("")}
+        ${t.teamNotes?`<div style="margin-top:8px"><div style="font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;margin-bottom:4px">Team Notes</div><div style="font-size:12px;color:#374151;line-height:1.5;white-space:pre-wrap">${t.teamNotes}</div></div>`:""}
+        ${t.extension?`<div style="margin-top:8px;padding:8px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a"><div style="font-size:10px;color:#92400e;font-weight:700;text-transform:uppercase;margin-bottom:4px">Extension / New Ground</div><div style="font-size:12px;color:#78350f;line-height:1.5;white-space:pre-wrap">${t.extension}</div></div>`:""}
+        ${(t.arguments||[]).length?`
+        <div style="margin-top:10px">
+          <div style="font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;margin-bottom:6px">Arguments Tracked</div>
+          ${t.arguments.map(a=>`<div style="display:flex;gap:6px;margin-bottom:4px;padding:6px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
+            <span style="font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;background:${a.strength==="strong"?"#dcfce7":a.strength==="medium"?"#fef3c7":"#fee2e2"};color:${a.strength==="strong"?"#166534":a.strength==="medium"?"#92400e":"#991b1b"}">${a.strength}</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f3f4f6;color:#374151;font-weight:600">${a.tag}</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;background:${a.status==="conceded"?"#dcfce7":a.status==="rebutted"?"#fee2e2":"#f3f4f6"};color:${a.status==="conceded"?"#166534":a.status==="rebutted"?"#991b1b":"#374151"}">${a.status}</span>
+            <span style="font-size:12px;color:#111;flex:1">${a.text||""}</span>
+          </div>`).join("")}
+        </div>`:""}
+      </div>`;
+  }
+
+  // Clash notes
+  const clashHtml = Object.entries(note.clashes||{}).filter(([,v])=>v).map(([k,v])=>{
+    const [a,b]=k.split("_vs_");
+    return `<div style="margin-bottom:8px;padding:10px;background:#f8f9fc;border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px">
+        <span style="color:${tColors[a]||"#818cf8"}">${a}</span> vs <span style="color:${tColors[b]||"#fb923c"}">${b}</span>
+      </div>
+      <div style="font-size:12px;color:#111;white-space:pre-wrap">${v}</div>
+    </div>`;
+  }).join("");
+
+  const html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;margin:0;padding:0;font-size:13px}
+  h1{font-size:22px;font-weight:800;margin:0 0 4px}
+  h2{font-size:15px;font-weight:700;margin:18px 0 10px;padding-bottom:4px;border-bottom:2px solid #e5e7eb}
+  .meta{font-size:11px;color:#6b7280}
+  .ranking-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+  .rank-chip{text-align:center;padding:10px 14px;border-radius:10px;min-width:80px}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div style="padding:32px;max-width:820px;margin:0 auto">
+
+  <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #111">
+    <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">ADJUDICATION NOTES</div>
+    <h1>${note.title}</h1>
+    <div class="meta">${note.mode} Debate · ${note.round?'Round '+note.round+' · ':''}${date}</div>
+    ${note.motion?`<div style="margin-top:8px;padding:10px 14px;background:#f8f9fc;border-radius:8px;font-style:italic;color:#374151;font-size:13px">"${note.motion}"</div>`:""}
+  </div>
+
+  <h2>📊 Final Rankings</h2>
+  <div class="ranking-row">
+    ${rankings.map((r,i)=>{
+      const col=tColors[r.id]||"#818cf8";
+      return `<div class="rank-chip" style="background:${col}15;border:1px solid ${col}40">
+        <div style="font-size:20px">${RANK_EMOJI_E[i]||"·"}</div>
+        <div style="font-weight:800;color:${col};font-size:15px">${r.id}</div>
+        <div style="font-size:18px;font-weight:800">${r.total}</div>
+        <div style="font-size:10px;color:#6b7280">points</div>
+      </div>`;
+    }).join("")}
+  </div>
+
+  <h2>🗒 Team Notes</h2>
+  ${(note.mode==="BP"?["OG","OO","CG","CO"]:["GOV","OPP"]).map(teamBlock).join("")}
+
+  ${clashHtml?`<h2>⚔️ Clash Analysis</h2><div>${clashHtml}</div>`:""}
+
+  ${note.oaNotes?`<h2>🎤 Oral Adjudication Notes</h2>
+  <div style="white-space:pre-wrap;font-family:'Courier New',monospace;font-size:12px;background:#f8f9fc;border-radius:8px;padding:16px;line-height:1.7;color:#111">${note.oaNotes}</div>`:""}
+
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center">
+    Generated by Adjudicator App · ${date}
+  </div>
+</div></body></html>`;
+
+  // Use html2pdf if available, otherwise open print dialog
+  if (typeof html2pdf !== "undefined") {
+    const opt = {
+      margin: 0,
+      filename: (note.title||"session") + ".pdf",
+      image: { type:"jpeg", quality:0.97 },
+      html2canvas: { scale:2, useCORS:true },
+      jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
+    };
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    html2pdf().set(opt).from(wrapper.firstChild).save();
+    showToast("📄 Downloading PDF…", "success");
+  } else {
+    // Fallback: open in new tab for print-to-PDF
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+    showToast("📄 Print dialog opened — save as PDF", "info");
+  }
 }
 async function deleteSession(id){
   if(!confirm("Delete this session permanently?")) return;
@@ -980,70 +1085,121 @@ function generateOATemplate(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SAVE
+// SAVE MODAL — choose local or cloud
 // ══════════════════════════════════════════════════════════════════════════════
-async function saveSession(){
-  if(S.saving) return;
-  // Flush live DOM values into state before saving
-  const titleEl=document.getElementById("title-input"); if(titleEl) S.sessionTitle=titleEl.value;
-  const motionEl=document.getElementById("motion-input"); if(motionEl) S.motion=motionEl.value;
-  const roundEl=document.getElementById("round-input"); if(roundEl) S.round=roundEl.value;
-  const oaEl=document.getElementById("oa-textarea"); if(oaEl) S.oaNotes=oaEl.value;
+function showSaveModal() {
+  if (S.saving) return;
+  // Flush live DOM
+  const t=document.getElementById("title-input"); if(t) S.sessionTitle=t.value;
+  const m=document.getElementById("motion-input"); if(m) S.motion=m.value;
+  const r=document.getElementById("round-input"); if(r) S.round=r.value;
+  const o=document.getElementById("oa-textarea"); if(o) S.oaNotes=o.value;
 
-  S.saving=true;
-  const btn=document.getElementById("save-btn");
+  const existing = document.getElementById("save-modal");
+  if (existing) existing.remove();
+
+  const cloudAvail = cloudStatus === "online" && db;
+  const cloudNote  = cloudStatus === "online"  ? "Sync across devices" :
+                     cloudStatus === "offline" ? "Cloud unavailable right now" : "Checking…";
+  const cloudColor = cloudStatus === "online"  ? "#4ade80" :
+                     cloudStatus === "offline" ? "#f87171" : "#f59e0b";
+
+  const overlay = document.createElement("div");
+  overlay.id = "save-modal";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:88888;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";
+  overlay.innerHTML = `
+    <div style="background:#13131e;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:28px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.7)">
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px">Save Session</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:24px">Choose where to store this session</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="doSave('local')" style="width:100%;padding:16px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#fff;text-align:left;cursor:pointer;transition:all .15s" onmouseover="this.style.background='rgba(255,255,255,0.09)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:24px">💾</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Save Locally</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Stored in this browser only</div>
+            </div>
+          </div>
+        </button>
+        <button onclick="doSave('cloud')" ${!cloudAvail?"disabled":""} style="width:100%;padding:16px;border-radius:12px;background:${cloudAvail?"rgba(129,140,248,0.1)":"rgba(255,255,255,0.03)"};border:1px solid ${cloudAvail?"rgba(129,140,248,0.3)":"rgba(255,255,255,0.06)"};color:${cloudAvail?"#fff":"rgba(255,255,255,0.3)"};text-align:left;cursor:${cloudAvail?"pointer":"not-allowed"};transition:all .15s" ${cloudAvail?'onmouseover="this.style.background=\'rgba(129,140,248,0.18)\'" onmouseout="this.style.background=\'rgba(129,140,248,0.1)\'"':""}>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:24px">☁️</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Save to Cloud</div>
+              <div style="font-size:11px;color:${cloudColor};margin-top:2px">${cloudNote}</div>
+            </div>
+            ${cloudAvail?`<span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(34,197,94,0.15);color:#4ade80;font-weight:700">ONLINE</span>`:`<span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.15);color:#f87171;font-weight:700">${cloudStatus==="offline"?"OFFLINE":"..."}</span>`}
+          </div>
+        </button>
+      </div>
+      <button onclick="document.getElementById('save-modal').remove()" style="width:100%;margin-top:14px;padding:10px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);font-size:13px;cursor:pointer">Cancel</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if(e.target===overlay) overlay.remove(); });
+}
+
+async function doSave(target) {
+  document.getElementById("save-modal")?.remove();
+  S.saving = true;
+  const btn = document.getElementById("save-btn");
   if(btn){ btn.textContent="Saving…"; btn.disabled=true; }
 
   const now = new Date().toISOString();
   const sessionId = S.editingId || uid();
-  const rankings = computeRankings(S.teams);
-
+  const rankings  = computeRankings(S.teams);
   const sessionData = {
-    id:       sessionId,
-    title:    S.sessionTitle || (S.mode + " Session"),
-    mode:     S.mode,
-    motion:   S.motion,
-    round:    S.round,
-    teams:    S.teams,
-    oaNotes:  S.oaNotes,
-    clashes:  S.clashes,
-    rankings: rankings.map(r=>({id:r.id, total:r.total, autoRank:r.autoRank})),
-    savedAt:  now,
-    created_at: now,
+    id:          sessionId,
+    title:       S.sessionTitle || (S.mode + " Session"),
+    mode:        S.mode,
+    motion:      S.motion,
+    round:       S.round,
+    teams:       S.teams,
+    oaNotes:     S.oaNotes,
+    clashes:     S.clashes,
+    rankings:    rankings.map(r=>({id:r.id, total:r.total, autoRank:r.autoRank})),
+    savedAt:     now,
+    created_at:  now,
+    storageType: target,
   };
 
-  // ── 1. Save to localStorage immediately ──
+  // Always write to localStorage
   S.editingId = sessionId;
-  const existing = S.savedNotes.filter(n=>n.id !== sessionId);
+  const existing = S.savedNotes.filter(n => n.id !== sessionId);
   S.savedNotes = [sessionData, ...existing];
   persistSaved();
 
-  // ── 2. Upsert to Supabase using SDK (handles key + conflict resolution) ──
   let cloudOk = false;
-  try {
-    const dbRow = sessionToDb(sessionData);
-    const { error } = await db
-      .from(TABLE)
-      .upsert(dbRow, { onConflict: "id" });
-
-    if (error) throw new Error(error.message);
-    cloudOk = true;
-  } catch(e) {
-    console.error("☁️ Cloud save failed:", e.message);
-    showToast("⚠️ Cloud save failed — stored locally only", "warn");
+  if (target === "cloud" && db) {
+    try {
+      const { error } = await db.from(TABLE).upsert(sessionToDb(sessionData), { onConflict:"id" });
+      if (error) throw new Error(error.message);
+      cloudOk = true;
+      cloudStatus = "online";
+      // Update storageType label in local copy
+      S.savedNotes[0].storageType = "cloud";
+      persistSaved();
+      showToast("☁️ Saved to cloud", "success");
+    } catch(e) {
+      console.error("Cloud save error:", e.message);
+      showToast("⚠ Cloud save failed: " + e.message.slice(0, 50), "error");
+    }
+  } else if (target === "local") {
+    showToast("💾 Saved locally", "success");
   }
 
-  S.saving=false;
-  const label = cloudOk ? "☁️ Saved!" : "💾 Local only";
+  S.saving = false;
+  const label = (target === "cloud" && cloudOk) ? "☁️ Saved!" : "💾 Saved!";
   S.saveMsg = label;
   if(btn){ btn.textContent=label; btn.className="btn btn-success"; btn.disabled=false; }
-  if(cloudOk) showToast("☁️ Session saved to cloud", "success");
-  setTimeout(()=>{
-    S.saveMsg="";
-    const b=document.getElementById("save-btn");
+  setTimeout(() => {
+    S.saveMsg = "";
+    const b = document.getElementById("save-btn");
     if(b){ b.textContent="💾 Save"; b.className="btn btn-primary"; }
   }, 3000);
 }
+
+// Keep old saveSession as alias for topbar button (now opens modal)
+function saveSession(){ showSaveModal(); }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BIND JUDGE VIEW
