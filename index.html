@@ -1,1188 +1,926 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Adjudicator - Debate Assistant</title>
-  
-  <style>
-    body { background-color: #0a0a0f; margin: 0; padding: 0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adjudicator — Debate Judge Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100vh;background:#0a0a0f;color:#fff;font-family:'DM Sans','Segoe UI',sans-serif}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+input,textarea,select,button{font-family:inherit}
+textarea::placeholder,input::placeholder{color:rgba(255,255,255,0.2)}
+select option{background:#1a1a2e;color:#fff}
+button{cursor:pointer}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.fade-in{animation:fadeIn 0.4s ease both}
+.slide-in{animation:slideIn 0.25s ease both}
+#app{min-height:100vh}
 
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+/* ── reusable atoms ── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px}
+.label-xs{font-size:11px;color:rgba(255,255,255,0.35);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.note-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#fff;font-size:12px;padding:10px 12px;resize:vertical;min-height:60px;outline:none;line-height:1.6;font-family:'DM Sans',sans-serif}
+.note-textarea:focus{border-color:rgba(129,140,248,0.4)}
+.btn{padding:6px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);font-size:12px;font-weight:600;transition:all .15s}
+.btn:hover{background:rgba(255,255,255,0.09);color:#fff}
+.btn-primary{background:rgba(129,140,248,0.18);color:#818cf8;border-color:rgba(129,140,248,0.35)}
+.btn-primary:hover{background:rgba(129,140,248,0.28)}
+.btn-success{background:rgba(34,197,94,0.12);color:#4ade80;border-color:rgba(34,197,94,0.25)}
+.btn-danger{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.2)}
+
+/* ── timer ── */
+#timer-widget{position:fixed;bottom:24px;right:24px;z-index:9999;width:248px;background:rgba(6,6,14,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px 20px;backdrop-filter:blur(16px);box-shadow:0 8px 40px rgba(0,0,0,0.6);transition:border-color .3s}
+#timer-widget.over{border-color:#ef4444;animation:blink .9s step-end infinite}
+#timer-mini{position:fixed;bottom:24px;right:24px;z-index:9999;background:rgba(6,6,14,0.96);border-radius:40px;padding:8px 18px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,0.5)}
+#timer-mini.over{background:#ef4444;animation:blink .9s step-end infinite}
+#timer-display{font-family:'DM Mono',monospace;font-size:36px;font-weight:700;letter-spacing:2px;text-align:center;line-height:1;transition:color .3s}
+#timer-bar-track{background:rgba(255,255,255,0.1);border-radius:4px;height:4px;margin:10px 0}
+#timer-bar-fill{height:100%;border-radius:4px;transition:width .6s linear,background .3s}
+.timer-phase-btn{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid;cursor:pointer;transition:all .15s}
+
+/* ── top bar ── */
+#topbar{position:sticky;top:0;z-index:100;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.06)}
+#topbar-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:10px;height:54px;padding:0 16px}
+#motion-bar{max-width:1400px;margin:0 auto;padding:0 16px 8px}
+#motion-input{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;color:rgba(255,255,255,0.8);font-size:13px;padding:6px 12px;outline:none;font-style:italic}
+#motion-input:focus{border-color:rgba(129,140,248,0.3)}
+#title-input{background:transparent;border:none;color:#fff;font-size:14px;font-weight:600;outline:none;flex:1;min-width:0}
+#round-input{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#fff;font-size:12px;padding:4px 10px;width:80px;outline:none}
+.tab-bar{max-width:1400px;margin:0 auto;display:flex;border-top:1px solid rgba(255,255,255,0.05);padding:0 16px}
+.main-tab{padding:10px 16px;background:none;border:none;color:rgba(255,255,255,0.35);border-bottom:2px solid transparent;font-size:12px;font-weight:600;transition:all .15s}
+.main-tab.active{color:#818cf8;border-bottom-color:#818cf8}
+.main-tab:hover{color:rgba(255,255,255,0.7)}
+
+/* ── content ── */
+#content{max-width:1400px;margin:0 auto;padding:20px 16px 140px}
+
+/* ── team tab selector ── */
+.team-tab-btn{padding:8px 18px;border-radius:10px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);transition:all .15s;white-space:nowrap}
+.team-tab-btn.active{font-weight:700}
+
+/* ── speaker card ── */
+.speaker-card{background:rgba(255,255,255,0.03);border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid;border-top:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)}
+.score-display{font-size:24px;font-weight:800;line-height:1}
+.poi-btn{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;border:1px solid;cursor:pointer;transition:all .15s}
+.poi-btn:hover{opacity:.8}
+
+/* ── argument card ── */
+.arg-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:8px}
+.arg-select{font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15)}
+.arg-textarea{width:100%;background:transparent;border:none;color:#fff;font-size:13px;resize:none;outline:none;line-height:1.5;min-height:36px;font-family:'DM Sans',sans-serif}
+
+/* ── overview row ── */
+#score-overview{margin-top:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:16px}
+
+/* ── clash ── */
+.clash-textarea{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;color:#fff;font-size:12px;padding:8px 10px;resize:vertical;min-height:52px;outline:none;line-height:1.5;font-family:'DM Sans',sans-serif}
+.clash-textarea:focus{border-color:rgba(129,140,248,0.3)}
+.contr-textarea{width:100%;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1);border-radius:8px;color:#fff;font-size:12px;padding:8px 10px;resize:vertical;min-height:48px;outline:none;line-height:1.5;font-family:'DM Sans',sans-serif}
+
+/* ── OA ── */
+#oa-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(129,140,248,0.2);border-radius:10px;color:#fff;font-size:13px;padding:14px 16px;resize:vertical;min-height:300px;outline:none;line-height:1.7;font-family:'DM Mono',monospace}
+#oa-textarea:focus{border-color:rgba(129,140,248,0.45)}
+
+/* ── saved list ── */
+.saved-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s}
+.saved-card:hover{border-color:rgba(255,255,255,0.14)}
+
+/* ── scale popup ── */
+.scale-popup{background:rgba(0,0,0,0.5);border-radius:8px;padding:10px;max-height:160px;overflow-y:auto;font-size:11px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.07)}
+
+/* ── home ── */
+.mode-card{padding:24px 20px;border-radius:16px;cursor:pointer;text-align:left;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);transition:all .2s;outline:none}
+.mode-card:hover{background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.4)}
+
+/* ── OA rank cards ── */
+.oa-rank-card{border-radius:10px;padding:10px 12px;text-align:center}
+</style>
 </head>
 <body>
+<div id="app"></div>
 
-  <div id="root"></div>
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = "https://wflbkylzmedfvpbtosgg.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Xx69UKocPcHChda3ea76JA_mguKTk4Z";
 
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useCallback } = React;
+async function supaFetch(path, opts = {}) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: opts.prefer || "return=representation",
+        ...(opts.extraHeaders || {})
+      },
+      method: opts.method || "GET",
+      body: opts.body
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch(e) {
+    console.warn("Supabase:", e.message);
+    return null;
+  }
+}
 
-    // ─── Supabase client (plug in your URL + anon key) ───────────────────────────
-    const SUPABASE_URL = "https://wflbkylzmedfvpbtosgg.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_Xx69UKocPcHChda3ea76JA_mguKTk4Z";
+// ══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════════════════════
+const BP_TEAMS = [
+  { id:"OG", label:"Opening Government",  abbr:"OG", bench:"gov", half:"opening" },
+  { id:"OO", label:"Opening Opposition",  abbr:"OO", bench:"opp", half:"opening" },
+  { id:"CG", label:"Closing Government",  abbr:"CG", bench:"gov", half:"closing" },
+  { id:"CO", label:"Closing Opposition",  abbr:"CO", bench:"opp", half:"closing" },
+];
+const BP_ROLES = {
+  OG:["Prime Minister","Deputy Prime Minister"],
+  OO:["Leader of Opposition","Deputy Leader of Opposition"],
+  CG:["Member of Government","Government Whip"],
+  CO:["Member of Opposition","Opposition Whip"],
+};
+const AP_TEAMS = [
+  { id:"GOV", label:"Government",  abbr:"GOV", bench:"gov", half:"opening" },
+  { id:"OPP", label:"Opposition",  abbr:"OPP", bench:"opp", half:"opening" },
+];
+const AP_ROLES = {
+  GOV:["Prime Minister","Deputy Prime Minister","Government Whip"],
+  OPP:["Leader of Opposition","Deputy Leader of Opposition","Opposition Whip"],
+};
+const TEAM_COLORS = {
+  OG:"#818cf8", OO:"#fb923c", CG:"#4ade80", CO:"#f472b6",
+  GOV:"#818cf8", OPP:"#fb923c"
+};
+const ARGUMENT_TAGS = ["Economy","Rights","Democracy","Environment","Security","Health","Social","Practical","Principled","Empirical"];
+const SPEAKER_SCALE = [
+  {r:"95–100",d:"Plausibly one of the best speeches ever given"},
+  {r:"92–94", d:"Incredible — undoubtedly among best at competition"},
+  {r:"89–91", d:"Brilliant — demands extremely sophisticated responses"},
+  {r:"86–88", d:"Highly compelling, no logical gaps"},
+  {r:"83–85", d:"Addresses core issues with strong explanations"},
+  {r:"79–82", d:"Relevant, well-made, may be vulnerable to good responses"},
+  {r:"76–78", d:"Almost exclusively relevant, clear to follow"},
+  {r:"73–75", d:"Logical but simplistic, vulnerable to competent responses"},
+  {r:"70–72", d:"Frequently relevant, regular significant logical gaps"},
+  {r:"67–69", d:"Generally relevant, significant logical gaps throughout"},
+  {r:"64–66", d:"Some relevant arguments with significant logical gaps"},
+  {r:"61–63", d:"Some relevant claims, frequently unclear"},
+  {r:"58–60", d:"Occasionally relevant, hard to follow"},
+  {r:"55–57", d:"One or two marginally relevant claims"},
+  {r:"50–54", d:"Content not relevant, very hard to follow"},
+];
+const RANK_EMOJI = ["🥇","🥈","🥉","4️⃣"];
 
-    async function supaFetch(path, opts = {}) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: opts.prefer || "return=representation",
-          ...opts.headers,
-        },
-        ...opts,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const text = await res.text();
-      return text ? JSON.parse(text) : null;
-    }
+// ══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════════
+let S = {
+  view: "home",       // home | judge | saved
+  mode: "BP",
+  sessionTitle: "",
+  motion: "",
+  round: "",
+  teams: {},
+  oaNotes: "",
+  clashes: {},
+  savedNotes: [],
+  activeTeamTab: "OG",
+  judgeTab: "teams",  // teams | clash | oa
+  editingId: null,
+  saving: false,
+  saveMsg: "",
+  showScale: {},      // speakerId -> bool
+  timerPhase: "prep",
+  timerRunning: false,
+  timerElapsed: 0,
+  timerMinimized: false,
+};
+let timerInterval = null;
 
-    // ─── Constants ────────────────────────────────────────────────────────────────
-    const BP_TEAMS = [
-      { id: "OG", label: "Opening Government", abbr: "OG", bench: "gov", half: "opening" },
-      { id: "OO", label: "Opening Opposition", abbr: "OO", bench: "opp", half: "opening" },
-      { id: "CG", label: "Closing Government", abbr: "CG", bench: "gov", half: "closing" },
-      { id: "CO", label: "Closing Opposition", abbr: "CO", bench: "opp", half: "closing" },
-    ];
+// ══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+function fmtTime(s){ const m=Math.floor(s/60),sc=s%60; return `${m}:${sc.toString().padStart(2,"0")}`; }
+function esc(str){ return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-    const BP_ROLES = {
-      OG: ["Prime Minister", "Deputy Prime Minister"],
-      OO: ["Leader of Opposition", "Deputy Leader of Opposition"],
-      CG: ["Member of Government", "Government Whip"],
-      CO: ["Member of Opposition", "Opposition Whip"],
+function defaultBPSession(){
+  const teams={};
+  BP_TEAMS.forEach(t=>{
+    teams[t.id]={
+      id:t.id, label:t.label, abbr:t.abbr, bench:t.bench, half:t.half,
+      speakers:BP_ROLES[t.id].map((role,i)=>({
+        id:`${t.id}_s${i}`, role, name:"", score:75, notes:"",
+        pois_taken:[], pois_offered:[],
+      })),
+      teamNotes:"", arguments:[], contradictions:[], extension:"", rank:null,
     };
-
-    const AP_TEAMS = [
-      { id: "GOV", label: "Government", abbr: "GOV", bench: "gov", half: "opening" },
-      { id: "OPP", label: "Opposition", abbr: "OPP", bench: "opp", half: "opening" },
-    ];
-
-    const AP_ROLES = {
-      GOV: ["Prime Minister", "Deputy Prime Minister", "Government Whip"],
-      OPP: ["Leader of Opposition", "Deputy Leader of Opposition", "Opposition Whip"],
+  });
+  return teams;
+}
+function defaultAPSession(){
+  const teams={};
+  AP_TEAMS.forEach(t=>{
+    teams[t.id]={
+      id:t.id, label:t.label, abbr:t.abbr, bench:t.bench, half:t.half,
+      speakers:AP_ROLES[t.id].map((role,i)=>({
+        id:`${t.id}_s${i}`, role, name:"", score:75, notes:"",
+        pois_taken:[], pois_offered:[],
+      })),
+      teamNotes:"", arguments:[], contradictions:[], rank:null,
     };
+  });
+  return teams;
+}
+function computeRankings(teams){
+  const entries=Object.values(teams).map(t=>({
+    id:t.id,
+    total:t.speakers.reduce((s,sp)=>s+Number(sp.score||0),0),
+  }));
+  return [...entries].sort((a,b)=>b.total-a.total).map((e,i)=>({...e,autoRank:i+1}));
+}
+function teamIds(){ return S.mode==="BP"?BP_TEAMS.map(t=>t.id):AP_TEAMS.map(t=>t.id); }
 
-    const SPEAKER_SCALE = [
-      { range: "95–100", desc: "Plausibly one of the best speeches ever given" },
-      { range: "92–94", desc: "Incredible speech, undoubtedly among best at competition" },
-      { range: "89–91", desc: "Brilliant — demands extremely sophisticated responses" },
-      { range: "86–88", desc: "Highly compelling, no logical gaps" },
-      { range: "83–85", desc: "Addresses core issues with strong explanations" },
-      { range: "79–82", desc: "Relevant, well-made, may be vulnerable to good responses" },
-      { range: "76–78", desc: "Almost exclusively relevant, clear to follow" },
-      { range: "73–75", desc: "Logical but simplistic, vulnerable to competent responses" },
-      { range: "70–72", desc: "Frequently relevant, regular significant logical gaps" },
-      { range: "67–69", desc: "Generally relevant, significant logical gaps throughout" },
-      { range: "64–66", desc: "Some relevant arguments with significant logical gaps" },
-      { range: "61–63", desc: "Some relevant claims, frequently unclear" },
-      { range: "58–60", desc: "Occasionally relevant, hard to follow" },
-      { range: "55–57", desc: "One or two marginally relevant claims" },
-      { range: "50–54", desc: "Content not relevant, very hard to follow" },
-    ];
+function loadSaved(){
+  try{ S.savedNotes=JSON.parse(localStorage.getItem("adj_sessions")||"[]"); }
+  catch(e){ S.savedNotes=[]; }
+}
+function persistSaved(){
+  localStorage.setItem("adj_sessions",JSON.stringify(S.savedNotes));
+}
 
-    const ARGUMENT_TAGS = ["Economy", "Rights", "Democracy", "Environment", "Security", "Health", "Social", "Practical", "Principled", "Empirical"];
-    const POI_QUALITY = { excellent: "✓✓", good: "✓", poor: "~", refused: "✗" };
+// ══════════════════════════════════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════════════════════════════════
+function timerPrepMax(){ return S.mode==="BP"?15*60:30*60; }
+const SPEAKER_MAX=7*60+15;
+function timerLimit(){ return S.timerPhase==="prep"?timerPrepMax():SPEAKER_MAX; }
+function timerIsOver(){ return S.timerElapsed>timerLimit(); }
+function timerIsWarning(){ return S.timerPhase==="speaker"&&S.timerElapsed>=6*60&&!timerIsOver(); }
+function timerColor(){
+  if(timerIsOver()) return "#ef4444";
+  if(timerIsWarning()) return "#f59e0b";
+  return "#22c55e";
+}
+function startTimerInterval(){
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    S.timerElapsed++;
+    renderTimer();
+  },1000);
+}
+function stopTimerInterval(){ clearInterval(timerInterval); }
 
-    // ─── Utility helpers ──────────────────────────────────────────────────────────
-    // Replaces the old uid() function to ensure strict Postgres UUID compliance
-    function generateUUID() {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-      }
-      // Fallback for older browsers or non-HTTPS file environments
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      });
+function renderTimer(){
+  const over=timerIsOver(), warn=timerIsWarning(), col=timerColor();
+  const pct=Math.min((S.timerElapsed/timerLimit())*100,100);
+
+  if(S.timerMinimized){
+    document.getElementById("timer-widget")&&document.getElementById("timer-widget").remove();
+    let mini=document.getElementById("timer-mini");
+    if(!mini){
+      mini=document.createElement("div");
+      mini.id="timer-mini";
+      mini.onclick=()=>{ S.timerMinimized=false; renderTimer(); };
+      document.body.appendChild(mini);
     }
+    mini.className="timer-mini"+(over?" over":"");
+    mini.style.display="flex";
+    mini.innerHTML=`<span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${over?"#fff":col}">${fmtTime(S.timerElapsed)}</span><span style="font-size:10px;color:rgba(255,255,255,0.45)">tap to expand</span>`;
+    return;
+  }
+  document.getElementById("timer-mini")&&document.getElementById("timer-mini").remove();
 
-    function defaultBPSession() {
-      const teams = {};
-      BP_TEAMS.forEach(t => {
-        teams[t.id] = {
-          id: t.id, label: t.label, abbr: t.abbr, bench: t.bench, half: t.half,
-          speakers: BP_ROLES[t.id].map((role, i) => ({
-            id: `${t.id}_s${i}`, role, name: "", score: 75, notes: "",
-            pois_taken: [], pois_offered: [],
-          })),
-          teamNotes: "", arguments: [], rebuttals: [], contradictions: [],
-          rank: null, extension: "",
-        };
-      });
-      return teams;
-    }
+  let w=document.getElementById("timer-widget");
+  if(!w){
+    w=document.createElement("div");
+    w.id="timer-widget";
+    document.body.appendChild(w);
+  }
+  w.className=""+(over?" over":"");
+  w.style.borderColor=over?"#ef4444":"rgba(255,255,255,0.1)";
 
-    function defaultAPSession() {
-      const teams = {};
-      AP_TEAMS.forEach(t => {
-        teams[t.id] = {
-          id: t.id, label: t.label, abbr: t.abbr, bench: t.bench, half: t.opening,
-          speakers: AP_ROLES[t.id].map((role, i) => ({
-            id: `${t.id}_s${i}`, role, name: "", score: 75, notes: "",
-            pois_taken: [], pois_offered: [],
-          })),
-          teamNotes: "", arguments: [], rebuttals: [], contradictions: [],
-          rank: null,
-        };
-      });
-      return teams;
-    }
+  const phaseLabel=S.timerPhase==="prep"
+    ?`${S.mode} prep — ${S.mode==="BP"?"15:00":"30:00"} limit`
+    :"7:15 limit · POI 1:00–6:00";
 
-    // Moved computation out to prevent dependency ordering errors
-    function computeRankings(teams) {
-      const entries = Object.values(teams).map(t => ({
-        id: t.id,
-        total: t.speakers.reduce((s, sp) => s + Number(sp.score || 0), 0),
-        rank: t.rank,
-      }));
-      const sorted = [...entries].sort((a, b) => b.total - a.total);
-      return sorted.map((e, i) => ({ ...e, autoRank: i + 1 }));
-    }
+  w.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;gap:4px">
+        ${["prep","speaker"].map(p=>{
+          const active=S.timerPhase===p;
+          return `<button class="timer-phase-btn" onclick="timerSetPhase('${p}')" style="background:${active?col:"transparent"};color:${active?"#000":"rgba(255,255,255,0.45)"};border-color:${active?col:"rgba(255,255,255,0.15)"}">${p==="prep"?"PREP":"SPEAKER"}</button>`;
+        }).join("")}
+      </div>
+      <button onclick="S.timerMinimized=true;renderTimer()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:18px;line-height:1;padding:0">–</button>
+    </div>
+    <div id="timer-display" style="color:${col};animation:${over?"blink .9s step-end infinite":"none"}">${fmtTime(S.timerElapsed)}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:4px">${phaseLabel}</div>
+    <div id="timer-bar-track"><div id="timer-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+    ${S.timerPhase==="speaker"?`<div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:8px"><span>1:00 open</span><span>6:00 close</span><span>7:15 stop</span></div>`:""}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="timerToggle()" style="flex:1;padding:8px;border-radius:8px;font-weight:700;font-size:13px;background:${S.timerRunning?"#ef4444":col};color:#000;border:none;transition:background .2s">${S.timerRunning?"⏸ PAUSE":"▶ START"}</button>
+      <button onclick="timerReset()" style="padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;border:none;font-size:16px">↺</button>
+    </div>
+  `;
+}
+function timerSetPhase(p){ S.timerPhase=p; timerReset(); }
+function timerToggle(){
+  S.timerRunning=!S.timerRunning;
+  if(S.timerRunning) startTimerInterval(); else stopTimerInterval();
+  renderTimer();
+}
+function timerReset(){ S.timerElapsed=0; S.timerRunning=false; stopTimerInterval(); renderTimer(); }
 
-    // ─── Timer component ──────────────────────────────────────────────────────────
-    function FloatingTimer({ mode }) {
-      const [phase, setPhase] = useState("prep");
-      const [running, setRunning] = useState(false);
-      const [elapsed, setElapsed] = useState(0);
-      const [minimized, setMinimized] = useState(false);
-      const intervalRef = useRef(null);
+// ══════════════════════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+function render(){
+  const app=document.getElementById("app");
+  if(S.view==="home") { app.innerHTML=renderHome(); bindHome(); }
+  else if(S.view==="saved") { app.innerHTML=renderSaved(); bindSaved(); }
+  else if(S.view==="judge") { app.innerHTML=renderJudge(); bindJudge(); }
+  // re-attach timer
+  if(S.view==="judge") renderTimer();
+  else { document.getElementById("timer-widget")&&document.getElementById("timer-widget").remove(); document.getElementById("timer-mini")&&document.getElementById("timer-mini").remove(); }
+}
 
-      const prepMax = mode === "BP" ? 15 * 60 : 30 * 60;
-      const speakerMax = 7 * 60 + 15;
-      const limit = phase === "prep" ? prepMax : speakerMax;
-      const isOver = elapsed > limit;
-      const isWarning = phase === "speaker" && elapsed >= 6 * 60 && elapsed < speakerMax;
+// ══════════════════════════════════════════════════════════════════════════════
+// HOME
+// ══════════════════════════════════════════════════════════════════════════════
+function renderHome(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px">
+    <div class="fade-in" style="text-align:center;max-width:560px;width:100%">
+      <div style="font-size:52px;margin-bottom:14px">⚖️</div>
+      <h1 style="font-size:42px;font-weight:800;color:#fff;letter-spacing:-1.5px;margin-bottom:10px">Adjudicator</h1>
+      <p style="font-size:15px;color:rgba(255,255,255,0.4);margin-bottom:40px;line-height:1.7">Professional note-taking &amp; judging assistant<br>for BP and AP debate competitions</p>
 
-      useEffect(() => {
-        if (running) {
-          intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
-        } else {
-          clearInterval(intervalRef.current);
-        }
-        return () => clearInterval(intervalRef.current);
-      }, [running]);
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <button class="mode-card" id="btn-bp">
+          <div style="font-size:30px;margin-bottom:10px">🏛️</div>
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">British Parliamentary</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px">4 teams · 8 speeches · WUDC format</div>
+          <div style="font-size:11px;color:#818cf8;font-weight:700">OG · OO · CG · CO</div>
+        </button>
+        <button class="mode-card" id="btn-ap">
+          <div style="font-size:30px;margin-bottom:10px">🏟️</div>
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Asian Parliamentary</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px">2 teams · 6 speeches · AP format</div>
+          <div style="font-size:11px;color:#fb923c;font-weight:700">Government · Opposition</div>
+        </button>
+      </div>
 
-      const reset = () => { setElapsed(0); setRunning(false); };
-      const toggle = () => setRunning(r => !r);
+      <button id="btn-saved" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);font-size:14px;font-weight:500;transition:all .15s">
+        📁 Saved Sessions (${S.savedNotes.length})
+      </button>
+      <div style="margin-top:32px;display:flex;gap:24px;justify-content:center;font-size:12px;color:rgba(255,255,255,0.2)">
+        <span>⏱ Smart timer</span><span>📊 Score tracking</span><span>🗒 OA prep</span><span>☁️ Cloud save</span>
+      </div>
+    </div>
+  </div>`;
+}
+function bindHome(){
+  document.getElementById("btn-bp").onclick=()=>startNewSession("BP");
+  document.getElementById("btn-ap").onclick=()=>startNewSession("AP");
+  document.getElementById("btn-saved").onclick=()=>{ S.view="saved"; render(); };
+}
 
-      const pct = Math.min((elapsed / limit) * 100, 100);
-      const timerColor = isOver ? "#ef4444" : isWarning ? "#f59e0b" : "#22c55e";
-      const bgColor = isOver ? "rgba(239,68,68,0.1)" : "rgba(0,0,0,0.85)";
+// ══════════════════════════════════════════════════════════════════════════════
+// START / LOAD SESSION
+// ══════════════════════════════════════════════════════════════════════════════
+function startNewSession(mode){
+  S.mode=mode;
+  S.teams=mode==="BP"?defaultBPSession():defaultAPSession();
+  S.oaNotes=""; S.clashes={}; S.editingId=null;
+  S.sessionTitle=`${mode} Session — ${new Date().toLocaleDateString()}`;
+  S.motion=""; S.round="";
+  S.activeTeamTab=mode==="BP"?"OG":"GOV";
+  S.judgeTab="teams";
+  S.showScale={};
+  S.timerPhase="prep"; timerReset();
+  S.view="judge";
+  render();
+}
+function loadSession(note){
+  S.mode=note.mode; S.teams=note.teams; S.oaNotes=note.oaNotes||"";
+  S.clashes=note.clashes||{}; S.sessionTitle=note.title;
+  S.motion=note.motion||""; S.round=note.round||""; S.editingId=note.id;
+  S.activeTeamTab=note.mode==="BP"?"OG":"GOV";
+  S.judgeTab="teams"; S.showScale={};
+  S.timerPhase="prep"; timerReset();
+  S.view="judge";
+  render();
+}
 
-      if (minimized) {
-        return (
-          <div onClick={() => setMinimized(false)} style={{
-            position: "fixed", bottom: 24, right: 24, zIndex: 9999,
-            background: isOver ? "#ef4444" : "rgba(0,0,0,0.85)",
-            borderRadius: 40, padding: "8px 16px", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8,
-            animation: isOver ? "blink 0.8s step-end infinite" : "none",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-          }}>
-            <span style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 700, color: isOver ? "#fff" : timerColor }}>
-              {fmtTime(elapsed)}
-            </span>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>tap to expand</span>
-          </div>
-        );
-      }
-
-      return (
-        <div style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
-          background: bgColor, border: `1px solid ${isOver ? "#ef4444" : "rgba(255,255,255,0.1)"}`,
-          borderRadius: 16, padding: "16px 20px", width: 240,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          animation: isOver ? "blink 0.8s step-end infinite" : "none",
-          backdropFilter: "blur(12px)",
-          transition: "border-color 0.3s",
-        }}>
-          <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {["prep", "speaker"].map(p => (
-                <button key={p} onClick={() => { setPhase(p); reset(); }} style={{
-                  padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-                  background: phase === p ? timerColor : "transparent",
-                  color: phase === p ? "#000" : "rgba(255,255,255,0.5)",
-                  border: `1px solid ${phase === p ? timerColor : "rgba(255,255,255,0.15)"}`,
-                  cursor: "pointer",
-                }}>{p === "prep" ? "PREP" : "SPEAKER"}</button>
-              ))}
-            </div>
-            <button onClick={() => setMinimized(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 16, padding: 0 }}>–</button>
-          </div>
-
-          <div style={{ textAlign: "center", marginBottom: 12 }}>
-            <div style={{
-              fontFamily: "monospace", fontSize: 36, fontWeight: 700,
-              color: isOver ? "#ef4444" : isWarning ? "#f59e0b" : "#fff",
-              letterSpacing: 2,
-              animation: isOver ? "blink 0.8s step-end infinite" : "none",
-            }}>{fmtTime(elapsed)}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-              {phase === "prep" ? `${mode} prep — ${mode === "BP" ? "15:00" : "30:00"} limit` : "7:15 limit — POI from 1:00–6:00"}
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 4, height: 4, marginBottom: 12, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: timerColor, borderRadius: 4, transition: "width 0.5s, background 0.3s" }} />
-          </div>
-
-          {phase === "speaker" && (
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
-              <span>1:00 POI open</span><span>6:00 POI close</span><span>7:15 hard stop</span>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={toggle} style={{
-              flex: 1, padding: "8px 0", borderRadius: 8, fontWeight: 700, fontSize: 13,
-              background: running ? "#ef4444" : timerColor,
-              color: "#000", border: "none", cursor: "pointer",
-              transition: "background 0.2s",
-            }}>{running ? "⏸ PAUSE" : "▶ START"}</button>
-            <button onClick={reset} style={{
-              padding: "8px 12px", borderRadius: 8, fontWeight: 700, fontSize: 13,
-              background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", cursor: "pointer",
-            }}>↺</button>
-          </div>
-        </div>
-      );
-    }
-
-    // ─── Argument card ─────────────────────────────────────────────────────────────
-    function ArgumentCard({ arg, onUpdate, onDelete }) {
-      return (
-        <div style={{
-          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 10, padding: 12, marginBottom: 8,
-        }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-            <select value={arg.strength} onChange={e => onUpdate({ ...arg, strength: e.target.value })}
-              style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)" }}>
-              <option value="strong">💪 Strong</option>
-              <option value="medium">⚡ Medium</option>
-              <option value="weak">⚠ Weak</option>
-            </select>
-            <select value={arg.tag} onChange={e => onUpdate({ ...arg, tag: e.target.value })}
-              style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)" }}>
-              {ARGUMENT_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select value={arg.status} onChange={e => onUpdate({ ...arg, status: e.target.value })}
-              style={{ fontSize: 11, padding: "2px 6px", borderRadius: 6, background: arg.status === "rebutted" ? "rgba(239,68,68,0.15)" : arg.status === "conceded" ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)" }}>
-              <option value="standing">Standing</option>
-              <option value="rebutted">Rebutted</option>
-              <option value="conceded">Conceded ✓</option>
-              <option value="dropped">Dropped</option>
-            </select>
-            <button onClick={onDelete} style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,100,100,0.6)", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
-          </div>
-          <textarea value={arg.text} onChange={e => onUpdate({ ...arg, text: e.target.value })}
-            placeholder="Argument summary…"
-            style={{
-              width: "100%", background: "transparent", border: "none", color: "#fff",
-              fontSize: 13, resize: "none", outline: "none", lineHeight: 1.5, minHeight: 40,
-              fontFamily: "inherit",
-            }} />
-        </div>
-      );
-    }
-
-    // ─── Speaker card ─────────────────────────────────────────────────────────────
-    function SpeakerCard({ speaker, onUpdate, teamColor }) {
-      const [showScale, setShowScale] = useState(false);
-      const score = Number(speaker.score || 75);
-      const scoreColor = score >= 83 ? "#22c55e" : score >= 73 ? "#f59e0b" : score >= 64 ? "#f97316" : "#ef4444";
-
-      return (
-        <div style={{
-          background: "rgba(255,255,255,0.03)", border: `1px solid ${teamColor}30`,
-          borderLeft: `3px solid ${teamColor}`, borderRadius: 10, padding: 14, marginBottom: 10,
-        }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 3, fontWeight: 600, letterSpacing: 0.5 }}>{speaker.role.toUpperCase()}</div>
-              <input value={speaker.name} onChange={e => onUpdate({ ...speaker, name: e.target.value })}
-                placeholder="Speaker name…"
-                style={{ background: "transparent", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, outline: "none", width: "100%", fontFamily: "inherit" }} />
-            </div>
-            <div style={{ textAlign: "center", minWidth: 64 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{score}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>/ 100</div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 32 }}>Score</span>
-            <input type="range" min={50} max={100} value={score}
-              onChange={e => onUpdate({ ...speaker, score: Number(e.target.value) })}
-              style={{ flex: 1, accentColor: scoreColor }} />
-            <input type="number" min={50} max={100} value={score}
-              onChange={e => onUpdate({ ...speaker, score: Number(e.target.value) })}
-              style={{ width: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "2px 4px", fontFamily: "inherit" }} />
-            <button onClick={() => setShowScale(s => !s)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 12 }}>?</button>
-          </div>
-
-          {showScale && (
-            <div style={{ background: "rgba(0,0,0,0.4)", borderRadius: 8, padding: 10, marginBottom: 8, maxHeight: 160, overflowY: "auto", fontSize: 11 }}>
-              {SPEAKER_SCALE.map(s => (
-                <div key={s.range} style={{ display: "flex", gap: 8, marginBottom: 4, color: "rgba(255,255,255,0.7)" }}>
-                  <span style={{ minWidth: 48, color: "#f59e0b", fontWeight: 700 }}>{s.range}</span>
-                  <span>{s.desc}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Speaker notes</div>
-            <textarea value={speaker.notes} onChange={e => onUpdate({ ...speaker, notes: e.target.value })}
-              placeholder="Notes on this speaker's performance, POIs, style…"
-              style={{
-                width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", resize: "vertical",
-                minHeight: 60, outline: "none", lineHeight: 1.5, fontFamily: "inherit", boxSizing: "border-box",
-              }} />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>POI tracking</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {["taken_excellent", "taken_good", "taken_poor", "refused", "offered"].map(type => {
-                const count = (speaker.pois_taken || []).filter(p => p === type).length
-                  + (type === "offered" ? (speaker.pois_offered || []).length : 0);
-                const label = { taken_excellent: "✓✓ Excellent", taken_good: "✓ Good", taken_poor: "~ Poor", refused: "✗ Refused", offered: "→ Offered" }[type];
-                const col = { taken_excellent: "#22c55e", taken_good: "#86efac", taken_poor: "#f59e0b", refused: "#ef4444", offered: "#60a5fa" }[type];
-                return (
-                  <button key={type}
-                    onClick={() => {
-                      if (type === "offered") {
-                        onUpdate({ ...speaker, pois_offered: [...(speaker.pois_offered || []), "offered"] });
-                      } else {
-                        onUpdate({ ...speaker, pois_taken: [...(speaker.pois_taken || []), type] });
-                      }
-                    }}
-                    style={{
-                      fontSize: 10, padding: "3px 8px", borderRadius: 20, cursor: "pointer",
-                      background: `${col}20`, color: col, border: `1px solid ${col}40`, fontWeight: 600,
-                    }}>
-                    {label} {count > 0 ? `(${count})` : "+"}
-                  </button>
-                );
-              })}
-              {((speaker.pois_taken || []).length + (speaker.pois_offered || []).length) > 0 && (
-                <button onClick={() => onUpdate({ ...speaker, pois_taken: [], pois_offered: [] })}
-                  style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, cursor: "pointer", background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  clear
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ─── Team panel ────────────────────────────────────────────────────────────────
-    function TeamPanel({ team, onUpdate, rankInfo, rankings }) {
-      const TEAM_COLORS = { OG: "#818cf8", OO: "#fb923c", CG: "#4ade80", CO: "#f472b6", GOV: "#818cf8", OPP: "#fb923c" };
-      const color = TEAM_COLORS[team.id] || "#818cf8";
-      const total = team.speakers.reduce((s, sp) => s + Number(sp.score || 0), 0);
-
-      const updateSpeaker = (idx, updated) => {
-        const speakers = [...team.speakers];
-        speakers[idx] = updated;
-        onUpdate({ ...team, speakers });
-      };
-
-      const addArgument = () => {
-        onUpdate({ ...team, arguments: [...(team.arguments || []), { id: uid(), text: "", strength: "medium", tag: "Practical", status: "standing" }] });
-      };
-
-      const updateArgument = (id, updated) => {
-        onUpdate({ ...team, arguments: team.arguments.map(a => a.id === id ? updated : a) });
-      };
-
-      const deleteArgument = (id) => {
-        onUpdate({ ...team, arguments: team.arguments.filter(a => a.id !== id) });
-      };
-
-      const rankLabel = rankInfo ? `#${rankInfo.autoRank}` : "–";
-      const rankColors = ["", "#ffd700", "#c0c0c0", "#cd7f32", "#888"];
-
-      return (
-        <div style={{
-          background: "rgba(255,255,255,0.03)", border: `1px solid ${color}25`,
-          borderTop: `3px solid ${color}`, borderRadius: 14, overflow: "hidden",
-        }}>
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              background: `${color}20`, color, fontWeight: 800, fontSize: 14,
-              padding: "4px 12px", borderRadius: 20, border: `1px solid ${color}40`,
-              letterSpacing: 1,
-            }}>{team.abbr}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{team.label}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
-                {team.bench === "gov" ? "Government" : "Opposition"} · {team.half === "opening" ? "Opening" : "Closing"}
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color }}>Σ {total}</div>
-              <div style={{ fontSize: 10, color: rankColors[rankInfo?.autoRank] || "#888", fontWeight: 700 }}>
-                {rankInfo ? `Rank ${rankLabel}` : "–"}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 14 }}>
-              {team.speakers.map((sp, i) => (
-                <SpeakerCard key={sp.id} speaker={sp} teamColor={color} onUpdate={updated => updateSpeaker(i, updated)} />
-              ))}
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>TEAM NOTES</div>
-              <textarea value={team.teamNotes || ""} onChange={e => onUpdate({ ...team, teamNotes: e.target.value })}
-                placeholder="Overall team notes, case strategy, bench dynamics…"
-                style={{
-                  width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 8, color: "#fff", fontSize: 12, padding: "10px 12px", resize: "vertical",
-                  minHeight: 70, outline: "none", lineHeight: 1.5, fontFamily: "inherit", boxSizing: "border-box",
-                }} />
-            </div>
-
-            {team.id === "CG" || team.id === "CO" ? (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>EXTENSION / NEW GROUND</div>
-                <textarea value={team.extension || ""} onChange={e => onUpdate({ ...team, extension: e.target.value })}
-                  placeholder="What's new? Extension material, new characterizations, unique angles…"
-                  style={{
-                    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,179,0,0.15)",
-                    borderRadius: 8, color: "#fff", fontSize: 12, padding: "10px 12px", resize: "vertical",
-                    minHeight: 60, outline: "none", lineHeight: 1.5, fontFamily: "inherit", boxSizing: "border-box",
-                  }} />
-              </div>
-            ) : null}
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 0.5 }}>ARGUMENTS TRACKER</div>
-                <button onClick={addArgument} style={{
-                  fontSize: 11, padding: "3px 10px", borderRadius: 20,
-                  background: `${color}20`, color, border: `1px solid ${color}40`, cursor: "pointer", fontWeight: 600,
-                }}>+ Add</button>
-              </div>
-              {(team.arguments || []).map(arg => (
-                <ArgumentCard key={arg.id} arg={arg}
-                  onUpdate={updated => updateArgument(arg.id, updated)}
-                  onDelete={() => deleteArgument(arg.id)} />
-              ))}
-              {(team.arguments || []).length === 0 && (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", textAlign: "center", padding: "12px 0" }}>
-                  No arguments tracked yet — click + Add
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ─── Clash matrix ──────────────────────────────────────────────────────────────
-    function ClashMatrix({ teams, onUpdate }) {
-      const teamIds = Object.keys(teams);
-      const [clashes, setClashes] = useState({});
-
-      const getClashKey = (a, b) => [a, b].sort().join("_vs_");
-      const setClash = (a, b, val) => {
-        const key = getClashKey(a, b);
-        const updated = { ...clashes, [key]: val };
-        setClashes(updated);
-        onUpdate(updated);
-      };
-
-      const pairs = [];
-      for (let i = 0; i < teamIds.length; i++) {
-        for (let j = i + 1; j < teamIds.length; j++) {
-          pairs.push([teamIds[i], teamIds[j]]);
-        }
-      }
-
-      return (
+// ══════════════════════════════════════════════════════════════════════════════
+// SAVED
+// ══════════════════════════════════════════════════════════════════════════════
+function renderSaved(){
+  const notes=S.savedNotes;
+  return `
+  <div style="min-height:100vh;padding:24px">
+    <div style="max-width:800px;margin:0 auto">
+      <button onclick="S.view='home';render()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:14px;margin-bottom:20px;padding:0">← Back to home</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10, fontWeight: 600, letterSpacing: 0.5 }}>PAIRWISE CLASH NOTES</div>
-          {pairs.map(([a, b]) => {
-            const key = getClashKey(a, b);
-            return (
-              <div key={key} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, color: "#818cf8" }}>{a}</span>
-                  <span style={{ color: "rgba(255,255,255,0.25)" }}> vs </span>
-                  <span style={{ fontWeight: 700, color: "#fb923c" }}>{b}</span>
-                </div>
-                <textarea value={clashes[key] || ""} onChange={e => setClash(a, b, e.target.value)}
-                  placeholder={`Who won the ${a} vs ${b} clash? Why?`}
-                  style={{
-                    width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", resize: "vertical",
-                    minHeight: 52, outline: "none", lineHeight: 1.5, fontFamily: "inherit", boxSizing: "border-box",
-                  }} />
-              </div>
-            );
-          })}
+          <div style="font-size:22px;font-weight:800">Saved Sessions</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">${notes.length} session${notes.length!==1?"s":""} saved</div>
         </div>
-      );
-    }
+        <button class="btn btn-primary" onclick="S.view='home';render()">+ New Session</button>
+      </div>
+      ${notes.length===0?`<div style="text-align:center;padding:60px 0;color:rgba(255,255,255,0.25)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:14px">No saved sessions yet</div></div>`:""}
+      <div id="saved-list" style="display:flex;flex-direction:column;gap:10px">
+        ${notes.map(n=>renderSavedCard(n)).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+function renderSavedCard(note){
+  const date=new Date(note.savedAt||note.created_at);
+  const rankings=note.rankings||[];
+  return `
+  <div class="saved-card">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(note.title)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:6px">${note.mode} · ${date.toLocaleDateString()} ${date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+      ${note.motion?`<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:6px;font-style:italic">"${esc(note.motion)}"</div>`:""}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${rankings.slice(0,4).map((r,i)=>`<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${TEAM_COLORS[r.id]||"#818cf8"}18;color:${TEAM_COLORS[r.id]||"#818cf8"};font-weight:700">#${i+1} ${esc(r.id)}</span>`).join("")}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+      <button class="btn btn-primary" onclick="openSaved('${esc(note.id)}')">Open</button>
+      <button class="btn btn-success" onclick="exportSession('${esc(note.id)}')">↓ Export</button>
+      <button class="btn btn-danger" onclick="deleteSession('${esc(note.id)}')">Delete</button>
+    </div>
+  </div>`;
+}
+function bindSaved(){}
 
-    // ─── OA Prep panel ────────────────────────────────────────────────────────────
-    function OAPanel({ teams, rankings, mode, oaNotes, onUpdateOA }) {
-      const TEAM_COLORS = { OG: "#818cf8", OO: "#fb923c", CG: "#4ade80", CO: "#f472b6", GOV: "#818cf8", OPP: "#fb923c" };
-      const sorted = [...rankings].sort((a, b) => a.autoRank - b.autoRank);
-      const rankEmoji = ["🥇", "🥈", "🥉", "4️⃣"];
+function openSaved(id){
+  const note=S.savedNotes.find(n=>n.id===id);
+  if(note) loadSession(note);
+}
+function exportSession(id){
+  const note=S.savedNotes.find(n=>n.id===id); if(!note) return;
+  const blob=new Blob([JSON.stringify(note,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=`${note.title}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+function deleteSession(id){
+  if(!confirm("Delete this session permanently?")) return;
+  S.savedNotes=S.savedNotes.filter(n=>n.id!==id);
+  persistSaved();
+  render();
+}
 
-      const generateOATemplate = () => {
-        let template = `=== OA STRUCTURE ===\n\n`;
-        template += `RANKING ANNOUNCEMENT:\n`;
-        sorted.forEach((r, i) => {
-          const t = teams[r.id];
-          template += `  ${rankEmoji[i]} ${i + 1}st: ${r.id} (${t?.label}) — Total: ${r.total}\n`;
-        });
-        template += `\n`;
+// ══════════════════════════════════════════════════════════════════════════════
+// JUDGE VIEW
+// ══════════════════════════════════════════════════════════════════════════════
+function renderJudge(){
+  const ids=teamIds();
+  const rankings=computeRankings(S.teams);
+  return `
+  ${renderTopBar(rankings)}
+  <div id="content">
+    ${S.judgeTab==="teams"?renderTeamsTab(ids,rankings):""}
+    ${S.judgeTab==="clash"?renderClashTab(ids,rankings):""}
+    ${S.judgeTab==="oa"?renderOATab(rankings):""}
+  </div>`;
+}
 
-        if (mode === "BP") {
-          template += `PAIRWISE COMPARISONS TO COVER:\n`;
-          template += `  [ ] OG vs OO — top half\n`;
-          template += `  [ ] CG vs CO — bottom half\n`;
-          template += `  [ ] OG vs CG — gov bench\n`;
-          template += `  [ ] OO vs CO — opp bench\n`;
-          template += `  [ ] OG vs CO — diagonal\n`;
-          template += `  [ ] OO vs CG — diagonal\n\n`;
-        } else {
-          template += `PAIRWISE COMPARISON:\n  [ ] GOV vs OPP\n\n`;
-        }
+// ── TOP BAR ──
+function renderTopBar(rankings){
+  return `
+  <div id="topbar">
+    <div id="topbar-inner">
+      <button onclick="S.view='home';stopTimerInterval();render()" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:20px;padding:0;flex-shrink:0">←</button>
+      <span class="badge" style="background:rgba(129,140,248,0.2);color:#818cf8;flex-shrink:0">${S.mode}</span>
+      <input id="title-input" value="${esc(S.sessionTitle)}" placeholder="Session title…" oninput="S.sessionTitle=this.value">
+      <input id="round-input" value="${esc(S.round)}" placeholder="Round #" oninput="S.round=this.value">
+      <button class="btn" onclick="S.view='saved';render()" style="flex-shrink:0">📁 Saved</button>
+      <button id="save-btn" class="btn ${S.saveMsg?"btn-success":"btn-primary"}" onclick="saveSession()" style="flex-shrink:0;min-width:72px">${S.saveMsg||"💾 Save"}</button>
+    </div>
+    <div id="motion-bar">
+      <input id="motion-input" value="${esc(S.motion)}" placeholder="Motion: This House would / believes / supports…" oninput="S.motion=this.value">
+    </div>
+    <div class="tab-bar">
+      <button class="main-tab ${S.judgeTab==="teams"?"active":""}" onclick="setJudgeTab('teams')">📝 Team Notes</button>
+      <button class="main-tab ${S.judgeTab==="clash"?"active":""}" onclick="setJudgeTab('clash')">⚔️ Clash Analysis</button>
+      <button class="main-tab ${S.judgeTab==="oa"?"active":""}" onclick="setJudgeTab('oa')">🎤 OA Prep</button>
+    </div>
+  </div>`;
+}
+function setJudgeTab(tab){ S.judgeTab=tab; render(); }
 
-        template += `RANKING JUSTIFICATION:\n`;
-        sorted.forEach((r, i) => {
-          const t = teams[r.id];
-          template += `\n${i + 1}. ${r.id} — ${t?.label}\n`;
-          const args = t?.arguments || [];
-          if (args.length > 0) {
-            template += `   Key arguments: ${args.map(a => a.text.slice(0, 50)).join("; ")}\n`;
-          }
-          template += `   [Your notes here…]\n`;
-        });
+// ── TEAMS TAB ──
+function renderTeamsTab(ids,rankings){
+  const team=S.teams[S.activeTeamTab];
+  if(!team) return "";
+  return `
+  <div class="slide-in">
+    <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;align-items:center">
+      ${ids.map(tid=>{
+        const ri=rankings.find(r=>r.id===tid);
+        const col=TEAM_COLORS[tid];
+        const active=S.activeTeamTab===tid;
+        return `<button class="team-tab-btn ${active?"active":""}" onclick="setActiveTeam('${tid}')"
+          style="background:${active?col+"20":"rgba(255,255,255,0.04)"};border-color:${active?col+"50":"rgba(255,255,255,0.08)"};color:${active?col:"rgba(255,255,255,0.5)"}">
+          ${tid} <span style="margin-left:6px;font-size:10px;color:${active?col:"rgba(255,255,255,0.3)"};">#${ri?ri.autoRank:"?"} · ${ri?ri.total:""}</span>
+        </button>`;
+      }).join("")}
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${rankings.map((r,i)=>`<span style="font-size:10px;padding:3px 8px;border-radius:20px;background:${TEAM_COLORS[r.id]}15;color:${TEAM_COLORS[r.id]};border:1px solid ${TEAM_COLORS[r.id]}30;font-weight:700">#${i+1} ${r.id}</span>`).join("")}
+      </div>
+    </div>
+    ${renderTeamPanel(team,rankings.find(r=>r.id===S.activeTeamTab))}
+    ${renderScoreOverview(ids,rankings)}
+  </div>`;
+}
+function setActiveTeam(tid){ S.activeTeamTab=tid; render(); }
 
-        template += `\n\nGENERAL ADVICE:\n  [Advice separated from decision reasons]\n`;
-        onUpdateOA(template);
-      };
-
-      return (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>OA Preparation & Ranking Summary</div>
-            <button onClick={generateOATemplate} style={{
-              fontSize: 11, padding: "5px 14px", borderRadius: 20,
-              background: "rgba(129,140,248,0.15)", color: "#818cf8",
-              border: "1px solid rgba(129,140,248,0.3)", cursor: "pointer", fontWeight: 600,
-            }}>✨ Auto-generate template</button>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
-            {sorted.map((r, i) => (
-              <div key={r.id} style={{
-                background: `${TEAM_COLORS[r.id]}10`, border: `1px solid ${TEAM_COLORS[r.id]}30`,
-                borderRadius: 10, padding: "10px 12px", textAlign: "center",
-              }}>
-                <div style={{ fontSize: 20 }}>{rankEmoji[i]}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: TEAM_COLORS[r.id], marginTop: 4 }}>{r.id}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{teams[r.id]?.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 6 }}>{r.total}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>combined pts</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 10, fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 600, letterSpacing: 0.5 }}>OA NOTES & SCRIPT</div>
-          <textarea value={oaNotes} onChange={e => onUpdateOA(e.target.value)}
-            placeholder="Write your OA here — structure, key comparisons, advice for teams…"
-            style={{
-              width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(129,140,248,0.2)",
-              borderRadius: 10, color: "#fff", fontSize: 13, padding: "14px 16px", resize: "vertical",
-              minHeight: 320, outline: "none", lineHeight: 1.7, fontFamily: "'Fira Code', 'Courier New', monospace",
-              boxSizing: "border-box",
-            }} />
-
-          <div style={{ marginTop: 16, background: "rgba(251,191,36,0.05)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 10, padding: 14 }}>
-            <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700, marginBottom: 8 }}>📋 OA CHECKLIST</div>
-            {[
-              "Announce ranking clearly at the start",
-              "Cover ALL pairwise comparisons (min 6 for BP)",
-              "Identify specific arguments — avoid vague adjectives",
-              "Explain why stronger arguments beat weaker ones",
-              "Separate advice from decision reasons",
-              "Note any split decisions and which comparisons were voted on",
-              "Invite teams for post-round feedback",
-              "Stay within 10–15 minutes",
-            ].map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                <span style={{ color: "#fbbf24" }}>□</span>{item}
-              </div>
-            ))}
-          </div>
+function renderTeamPanel(team,rankInfo){
+  const col=TEAM_COLORS[team.id];
+  const total=team.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
+  const rankColors=["","#ffd700","#c0c0c0","#cd7f32","#888"];
+  return `
+  <div style="background:rgba(255,255,255,0.03);border:1px solid ${col}25;border-top:3px solid ${col};border-radius:14px;overflow:hidden">
+    <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px">
+      <span class="badge" style="background:${col}20;color:${col};border:1px solid ${col}40">${team.abbr}</span>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${team.label}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${team.bench==="gov"?"Government":"Opposition"} · ${team.half==="opening"?"Opening":"Closing"}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:800;color:${col}">Σ ${total}</div>
+        <div style="font-size:10px;color:${rankColors[rankInfo?.autoRank]||"#888"};font-weight:700">${rankInfo?"Rank #"+rankInfo.autoRank:"–"}</div>
+      </div>
+    </div>
+    <div style="padding:16px">
+      ${team.speakers.map((sp,i)=>renderSpeakerCard(sp,i,team.id,col)).join("")}
+      <div style="margin-bottom:14px">
+        <div class="label-xs" style="margin-bottom:6px">Team Notes</div>
+        <textarea class="note-textarea" style="min-height:70px" oninput="updateTeamField('${team.id}','teamNotes',this.value)" placeholder="Overall team notes, case strategy, bench dynamics…">${esc(team.teamNotes||"")}</textarea>
+      </div>
+      ${(team.id==="CG"||team.id==="CO")?`
+      <div style="margin-bottom:14px">
+        <div class="label-xs" style="margin-bottom:6px">Extension / New Ground</div>
+        <textarea class="note-textarea" style="min-height:60px;border-color:rgba(251,191,36,0.15)" oninput="updateTeamField('${team.id}','extension',this.value)" placeholder="What's new? Extension material, new characterizations, unique angles…">${esc(team.extension||"")}</textarea>
+      </div>`:""}
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="label-xs">Arguments Tracker</div>
+          <button class="btn" style="font-size:11px;padding:3px 10px;background:${col}20;color:${col};border-color:${col}40" onclick="addArgument('${team.id}')">+ Add</button>
         </div>
-      );
-    }
-
-    // ─── Saved notes list ──────────────────────────────────────────────────────────
-    function SavedNotesList({ notes, onLoad, onDelete, onNew }) {
-      return (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.5 }}>Saved Sessions</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{notes.length} session{notes.length !== 1 ? "s" : ""} saved</div>
-            </div>
-            <button onClick={onNew} style={{
-              padding: "10px 20px", borderRadius: 10, fontWeight: 700, fontSize: 13,
-              background: "linear-gradient(135deg, #818cf8, #6366f1)", color: "#fff",
-              border: "none", cursor: "pointer",
-            }}>+ New Session</button>
-          </div>
-
-          {notes.length === 0 && (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,0.25)" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-              <div style={{ fontSize: 14 }}>No saved sessions yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Complete a judging session and save it</div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {notes.map(note => {
-              const date = new Date(note.created_at || note.savedAt);
-              const rankings = note.rankings || [];
-              return (
-                <div key={note.id} style={{
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 12, padding: 16, display: "flex", gap: 14, alignItems: "flex-start",
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{note.title}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>
-                      {note.mode} · {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    {note.motion && (
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontStyle: "italic" }}>
-                        "{note.motion}"
-                      </div>
-                    )}
-                    {rankings.length > 0 && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {rankings.slice(0, 4).map((r, i) => (
-                          <span key={i} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "rgba(129,140,248,0.15)", color: "#818cf8", fontWeight: 600 }}>
-                            #{i + 1} {r.id}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <button onClick={() => onLoad(note)} style={{
-                      padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                      background: "rgba(129,140,248,0.15)", color: "#818cf8",
-                      border: "1px solid rgba(129,140,248,0.3)", cursor: "pointer",
-                    }}>Open</button>
-                    <button onClick={() => {
-                      const blob = new Blob([JSON.stringify(note, null, 2)], { type: "application/json" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url; a.download = `${note.title}.json`; a.click();
-                      URL.revokeObjectURL(url);
-                    }} style={{
-                      padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                      background: "rgba(34,197,94,0.1)", color: "#4ade80",
-                      border: "1px solid rgba(34,197,94,0.2)", cursor: "pointer",
-                    }}>↓ Export</button>
-                    <button onClick={() => onDelete(note.id)} style={{
-                      padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                      background: "rgba(239,68,68,0.1)", color: "#f87171",
-                      border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer",
-                    }}>Delete</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div id="args-${team.id}">
+          ${(team.arguments||[]).map(arg=>renderArgCard(arg,team.id)).join("")}
+          ${(team.arguments||[]).length===0?`<div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">No arguments tracked — click + Add</div>`:""}
         </div>
-      );
-    }
+      </div>
+    </div>
+  </div>`;
+}
 
-    // ─── Main app ─────────────────────────────────────────────────────────────────
-    function App() {
-      const [view, setView] = useState("home");
-      const [mode, setMode] = useState("BP");
-      const [sessionTitle, setSessionTitle] = useState("");
-      const [motion, setMotion] = useState("");
-      const [round, setRound] = useState("");
-      const [teams, setTeams] = useState(defaultBPSession());
-      const [oaNotes, setOANotes] = useState("");
-      const [clashes, setClashes] = useState({});
-      const [savedNotes, setSavedNotes] = useState([]);
-      const [activeTab, setActiveTab] = useState("OG");
-      const [judgeTab, setJudgeTab] = useState("teams");
-      const [saving, setSaving] = useState(false);
-      const [saveMsg, setSaveMsg] = useState("");
-      const [editingId, setEditingId] = useState(null);
+function renderSpeakerCard(sp,idx,teamId,col){
+  const score=Number(sp.score||75);
+  const scoreColor=score>=83?"#22c55e":score>=73?"#f59e0b":score>=64?"#f97316":"#ef4444";
+  const showScale=S.showScale[sp.id]||false;
+  const poisTaken=sp.pois_taken||[];
+  const poisOffered=sp.pois_offered||[];
+  const countOf=(type)=>type==="offered"?poisOffered.length:poisTaken.filter(p=>p===type).length;
+  return `
+  <div class="speaker-card" style="border-left-color:${col}">
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;font-weight:700;letter-spacing:.5px">${sp.role.toUpperCase()}</div>
+        <input value="${esc(sp.name)}" placeholder="Speaker name…" oninput="updateSpeakerField('${teamId}',${idx},'name',this.value)"
+          style="background:transparent;border:none;color:#fff;font-size:14px;font-weight:600;outline:none;width:100%">
+      </div>
+      <div style="text-align:center;min-width:60px">
+        <div class="score-display" style="color:${scoreColor}">${score}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">/ 100</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <span style="font-size:11px;color:rgba(255,255,255,0.4);min-width:36px">Score</span>
+      <input type="range" min="50" max="100" value="${score}" oninput="updateSpeakerScore('${teamId}',${idx},this.value)"
+        style="flex:1;accent-color:${scoreColor}">
+      <input type="number" min="50" max="100" value="${score}" oninput="updateSpeakerScore('${teamId}',${idx},this.value)"
+        style="width:48px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;text-align:center;padding:2px 4px;outline:none">
+      <button onclick="toggleScale('${sp.id}')" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:13px;padding:0">?</button>
+    </div>
+    ${showScale?`<div class="scale-popup">${SPEAKER_SCALE.map(s=>`<div style="display:flex;gap:8px;margin-bottom:4px;color:rgba(255,255,255,0.7)"><span style="min-width:48px;color:#f59e0b;font-weight:700">${s.r}</span><span>${s.d}</span></div>`).join("")}</div>`:""}
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:4px">Speaker notes</div>
+      <textarea class="note-textarea" oninput="updateSpeakerField('${teamId}',${idx},'notes',this.value)" placeholder="Notes on performance, arguments made, POI quality, style…">${esc(sp.notes||"")}</textarea>
+    </div>
+    <div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px">POI tracking</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${[
+          {type:"taken_excellent",label:"✓✓ Excellent",col:"#22c55e"},
+          {type:"taken_good",label:"✓ Good",col:"#86efac"},
+          {type:"taken_poor",label:"~ Poor",col:"#f59e0b"},
+          {type:"refused",label:"✗ Refused",col:"#ef4444"},
+          {type:"offered",label:"→ Offered",col:"#60a5fa"},
+        ].map(({type,label,col:pc})=>{
+          const cnt=countOf(type);
+          return `<button class="poi-btn" style="background:${pc}20;color:${pc};border-color:${pc}40" onclick="addPOI('${teamId}',${idx},'${type}')">${label}${cnt>0?" ("+cnt+")":""}</button>`;
+        }).join("")}
+        ${(poisTaken.length+poisOffered.length)>0?`<button class="poi-btn" style="background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.2)" onclick="clearPOIs('${teamId}',${idx})">clear</button>`:""}
+      </div>
+    </div>
+  </div>`;
+}
 
-      useEffect(() => {
-        const stored = localStorage.getItem("debate_judge_sessions");
-        if (stored) setSavedNotes(JSON.parse(stored));
-      }, []);
+function renderArgCard(arg,teamId){
+  const statusBg={standing:"rgba(255,255,255,0.08)",rebutted:"rgba(239,68,68,0.15)",conceded:"rgba(34,197,94,0.15)",dropped:"rgba(100,100,100,0.15)"};
+  return `
+  <div class="arg-card" id="arg-${arg.id}">
+    <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
+      <select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','strength',this.value)">
+        ${["strong","medium","weak"].map(v=>`<option value="${v}" ${arg.strength===v?"selected":""}>${{strong:"💪 Strong",medium:"⚡ Medium",weak:"⚠ Weak"}[v]}</option>`).join("")}
+      </select>
+      <select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','tag',this.value)">
+        ${ARGUMENT_TAGS.map(t=>`<option value="${t}" ${arg.tag===t?"selected":""}>${t}</option>`).join("")}
+      </select>
+      <select class="arg-select" style="background:${statusBg[arg.status]||"rgba(255,255,255,0.08)"}" onchange="updateArgField('${teamId}','${arg.id}','status',this.value)">
+        ${["standing","rebutted","conceded","dropped"].map(v=>`<option value="${v}" ${arg.status===v?"selected":""}>${{standing:"Standing",rebutted:"Rebutted",conceded:"Conceded ✓",dropped:"Dropped"}[v]}</option>`).join("")}
+      </select>
+      <button onclick="deleteArgument('${teamId}','${arg.id}')" style="margin-left:auto;background:none;border:none;color:rgba(255,100,100,0.6);font-size:14px;padding:0">✕</button>
+    </div>
+    <textarea class="arg-textarea" oninput="updateArgField('${teamId}','${arg.id}','text',this.value)" placeholder="Argument summary…">${esc(arg.text||"")}</textarea>
+  </div>`;
+}
 
-      const persistNotes = (notes) => {
-        setSavedNotes(notes);
-        localStorage.setItem("debate_judge_sessions", JSON.stringify(notes));
-      };
+function renderScoreOverview(ids,rankings){
+  return `
+  <div id="score-overview">
+    <div class="label-xs" style="margin-bottom:12px">Score Overview</div>
+    <div style="display:grid;grid-template-columns:repeat(${ids.length},1fr);gap:12px">
+      ${ids.map(tid=>{
+        const t=S.teams[tid], col=TEAM_COLORS[tid];
+        const total=t.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
+        const ri=rankings.find(r=>r.id===tid);
+        return `<div style="text-align:center">
+          <div style="font-size:11px;color:${col};font-weight:700;margin-bottom:4px">${tid}</div>
+          ${t.speakers.map(sp=>`<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:1px">${sp.role.split(" ").slice(-1)[0]}: <span style="color:#fff;font-weight:600">${sp.score}</span></div>`).join("")}
+          <div style="margin-top:6px;font-size:16px;font-weight:800;color:${col}">Σ ${total}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3)">Rank #${ri?ri.autoRank:"?"}</div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
 
-      const startNewSession = (selectedMode) => {
-        setMode(selectedMode);
-        setTeams(selectedMode === "BP" ? defaultBPSession() : defaultAPSession());
-        setOANotes("");
-        setClashes({});
-        setSessionTitle(`${selectedMode} Session — ${new Date().toLocaleDateString()}`);
-        setMotion("");
-        setRound("");
-        setEditingId(null);
-        setActiveTab(selectedMode === "BP" ? "OG" : "GOV");
-        setJudgeTab("teams");
-        setView("judge");
-      };
-
-      const updateTeam = (id, updated) => {
-        setTeams(prev => ({ ...prev, [id]: updated }));
-      };
-
-      const rankings = computeRankings(teams);
-
-    const saveSession = async () => {
-        setSaving(true);
-        
-        const isNew = !editingId;
-        const sessionId = editingId || generateUUID();
-
-        // 1. Data payload optimized for your React state & Local Storage
-        const sessionData = {
-          id: sessionId,
-          title: sessionTitle || `${mode} Session`,
-          mode, 
-          motion, 
-          round, 
-          teams, 
-          oaNotes, 
-          clashes,
-          rankings: rankings.map(r => ({ id: r.id, total: r.total, autoRank: r.autoRank })),
-          savedAt: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        };
-
-        // 2. Data payload tailored EXACTLY to your Supabase SQL schema columns
-        const dbPayload = {
-          id: sessionId,
-          title: sessionData.title,
-          mode: mode,            // Matches column: mode (Type: debate_mode)
-          motion: sessionData.motion || "",
-          round: sessionData.round || "",
-          teams: sessionData.teams,
-          rankings: sessionData.rankings,
-          clashes: sessionData.clashes,
-          oa_notes: oaNotes || "" // Matches column: oa_notes
-          // user_id is omitted completely here so it defaults safely to NULL
-        };
-
-        try {
-          if (SUPABASE_URL !== "YOUR_SUPABASE_URL") {
-            if (!isNew) {
-              // Updating an existing record
-              await supaFetch(`debate_sessions?id=eq.${sessionId}`, {
-                method: "PATCH", 
-                body: JSON.stringify(dbPayload),
-              });
-            } else {
-              // Inserting a brand new record
-              await supaFetch("debate_sessions", { 
-                method: "POST", 
-                body: JSON.stringify(dbPayload) 
-              });
-            }
-          }
-        } catch (e) { 
-          console.error("Supabase API save error:", e); 
-        }
-
-        // 3. Sync tracking data to local storage configuration
-        const existing = savedNotes.filter(n => n.id !== sessionData.id);
-        persistNotes([sessionData, ...existing]);
-        setEditingId(sessionData.id);
-        
-        setSaveMsg("✓ Saved!");
-        setSaving(false);
-        setTimeout(() => setSaveMsg(""), 2500);
-      };
-
-      const loadSession = (note) => {
-        setMode(note.mode);
-        setTeams(note.teams);
-        setOANotes(note.oaNotes || "");
-        setClashes(note.clashes || {});
-        setSessionTitle(note.title);
-        setMotion(note.motion || "");
-        setRound(note.round || "");
-        setEditingId(note.id);
-        setActiveTab(note.mode === "BP" ? "OG" : "GOV");
-        setJudgeTab("teams");
-        setView("judge");
-      };
-
-      const deleteSession = (id) => {
-        if (!confirm("Delete this session?")) return;
-        persistNotes(savedNotes.filter(n => n.id !== id));
-      };
-
-      const teamIds = mode === "BP" ? BP_TEAMS.map(t => t.id) : AP_TEAMS.map(t => t.id);
-      const TEAM_COLORS = { OG: "#818cf8", OO: "#fb923c", CG: "#4ade80", CO: "#f472b6", GOV: "#818cf8", OPP: "#fb923c" };
-
-      if (view === "home") {
-        return (
-          <div style={{
-            minHeight: "100vh", background: "#0a0a0f",
-            fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: "40px 20px",
-          }}>
-            <style>{`
-              @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-              * { box-sizing: border-box; margin: 0; padding: 0; }
-              ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-              button { font-family: inherit; } input, textarea, select { font-family: inherit; }
-              @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
-              @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-            `}</style>
-
-            <div style={{ animation: "fadeIn 0.6s ease", textAlign: "center", maxWidth: 560 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>⚖️</div>
-              <h1 style={{ fontSize: 40, fontWeight: 800, color: "#fff", letterSpacing: -1.5, marginBottom: 8 }}>
-                Adjudicator
-              </h1>
-              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", marginBottom: 40, lineHeight: 1.6 }}>
-                Professional note-taking & judging assistant for BP and AP debate competitions
-              </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
-                {[
-                  { mode: "BP", title: "British Parliamentary", desc: "4 teams · 8 speeches · WUDC format", icon: "🏛️", detail: "OG · OO · CG · CO" },
-                  { mode: "AP", title: "Asian Parliamentary", desc: "2 teams · 6 speeches · WSDC-style", icon: "🏟️", detail: "Government · Opposition" },
-                ].map(opt => (
-                  <button key={opt.mode} onClick={() => startNewSession(opt.mode)} style={{
-                    padding: "24px 20px", borderRadius: 16, cursor: "pointer", textAlign: "left",
-                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
-                    transition: "all 0.2s", outline: "none",
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(129,140,248,0.1)"; e.currentTarget.style.borderColor = "rgba(129,140,248,0.4)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}>
-                    <div style={{ fontSize: 28, marginBottom: 10 }}>{opt.icon}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{opt.title}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{opt.desc}</div>
-                    <div style={{ fontSize: 11, color: "#818cf8", fontWeight: 600 }}>{opt.detail}</div>
-                  </button>
-                ))}
-              </div>
-
-              <button onClick={() => setView("saved")} style={{
-                width: "100%", padding: "14px", borderRadius: 12, cursor: "pointer",
-                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 500,
-              }}>
-                📁 Saved Sessions ({savedNotes.length})
-              </button>
-
-              <div style={{ marginTop: 32, display: "flex", gap: 20, justifyContent: "center", fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-                <span>⏱ Smart timer</span>
-                <span>📊 Score tracking</span>
-                <span>🗒️ OA prep</span>
-                <span>💾 Auto-save</span>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      if (view === "saved") {
-        return (
-          <div style={{
-            minHeight: "100vh", background: "#0a0a0f", fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-            padding: "24px", color: "#fff",
-          }}>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap'); * { box-sizing:border-box; }`}</style>
-            <div style={{ maxWidth: 800, margin: "0 auto" }}>
-              <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 14, marginBottom: 20, padding: 0 }}>
-                ← Back to home
-              </button>
-              <SavedNotesList notes={savedNotes} onLoad={loadSession} onDelete={deleteSession} onNew={() => setView("home")} />
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div style={{
-          minHeight: "100vh", background: "#0a0a0f", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: "#fff",
-        }}>
-          <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-            * { box-sizing: border-box; }
-            ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
-            @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
-            button { font-family: inherit; } input, textarea, select { font-family: inherit; }
-            textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.2); }
-            select option { background: #1a1a2e; color: #fff; }
-          `}</style>
-
-          {/* Top bar */}
-          <div style={{
-            position: "sticky", top: 0, zIndex: 100,
-            background: "rgba(10,10,15,0.95)", backdropFilter: "blur(16px)",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            padding: "0 16px",
-          }}>
-            <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, height: 56 }}>
-              <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 18, padding: 0, flexShrink: 0 }}>←</button>
-
-              <div style={{
-                background: "rgba(129,140,248,0.2)", color: "#818cf8", fontWeight: 800, fontSize: 11,
-                padding: "3px 10px", borderRadius: 20, letterSpacing: 1, flexShrink: 0,
-              }}>{mode}</div>
-
-              <input value={sessionTitle} onChange={e => setSessionTitle(e.target.value)}
-                style={{
-                  background: "transparent", border: "none", color: "#fff", fontSize: 14, fontWeight: 600,
-                  outline: "none", flex: 1, minWidth: 0,
-                }} />
-
-              <input value={round} onChange={e => setRound(e.target.value)} placeholder="Round #"
-                style={{
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 8, color: "#fff", fontSize: 12, padding: "4px 10px", width: 80, outline: "none",
-                }} />
-
-              <button onClick={() => setView("saved")} style={{
-                fontSize: 12, padding: "5px 12px", borderRadius: 8, flexShrink: 0,
-                background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)",
-                border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer",
-              }}>📁 Saved</button>
-
-              <button onClick={saveSession} disabled={saving} style={{
-                fontSize: 12, padding: "5px 16px", borderRadius: 8, flexShrink: 0,
-                background: saveMsg ? "rgba(34,197,94,0.2)" : "rgba(129,140,248,0.2)",
-                color: saveMsg ? "#4ade80" : "#818cf8",
-                border: `1px solid ${saveMsg ? "rgba(34,197,94,0.3)" : "rgba(129,140,248,0.3)"}`,
-                cursor: saving ? "not-allowed" : "pointer", fontWeight: 600, transition: "all 0.3s",
-              }}>{saving ? "Saving…" : saveMsg || "💾 Save"}</button>
-            </div>
-
-            {/* Motion bar */}
-            <div style={{ maxWidth: 1400, margin: "0 auto", paddingBottom: 8 }}>
-              <input value={motion} onChange={e => setMotion(e.target.value)}
-                placeholder="Motion: This House would / believes / supports…"
-                style={{
-                  width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 8, color: "rgba(255,255,255,0.8)", fontSize: 13, padding: "6px 12px", outline: "none",
-                  fontStyle: "italic",
-                }} />
-            </div>
-
-            {/* Tab bar */}
-            <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", gap: 0, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-              {[
-                { id: "teams", label: "📝 Team Notes" },
-                { id: "clash", label: "⚔️ Clash Analysis" },
-                { id: "oa", label: "🎤 OA Prep" },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setJudgeTab(tab.id)} style={{
-                  padding: "10px 16px", background: "none", border: "none",
-                  color: judgeTab === tab.id ? "#818cf8" : "rgba(255,255,255,0.35)",
-                  borderBottom: `2px solid ${judgeTab === tab.id ? "#818cf8" : "transparent"}`,
-                  cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
-                }}>{tab.label}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px 16px 120px" }}>
-
-            {judgeTab === "teams" && (
-              <div>
-                {/* Team selector tabs */}
-                <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 4 }}>
-                  {teamIds.map(tid => {
-                    const rankInfo = rankings.find(r => r.id === tid);
-                    const color = TEAM_COLORS[tid];
-                    return (
-                      <button key={tid} onClick={() => setActiveTab(tid)} style={{
-                        padding: "8px 18px", borderRadius: 10, cursor: "pointer", flexShrink: 0,
-                        background: activeTab === tid ? `${color}20` : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${activeTab === tid ? color + "50" : "rgba(255,255,255,0.08)"}`,
-                        color: activeTab === tid ? color : "rgba(255,255,255,0.5)",
-                        fontWeight: activeTab === tid ? 700 : 500, fontSize: 13, transition: "all 0.15s",
-                      }}>
-                        {tid}
-                        {rankInfo && (
-                          <span style={{ marginLeft: 8, fontSize: 10, color: activeTab === tid ? color : "rgba(255,255,255,0.3)" }}>
-                            #{rankInfo.autoRank} · {rankInfo.total}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
-                    {/* Rankings mini summary */}
-                    {rankings.map((r, i) => (
-                      <div key={r.id} style={{
-                        fontSize: 10, padding: "3px 8px", borderRadius: 20,
-                        background: `${TEAM_COLORS[r.id]}15`, color: TEAM_COLORS[r.id],
-                        border: `1px solid ${TEAM_COLORS[r.id]}30`, fontWeight: 700,
-                      }}>#{i + 1} {r.id}</div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Active team panel */}
-                {teams[activeTab] && (
-                  <TeamPanel
-                    team={teams[activeTab]}
-                    onUpdate={updated => updateTeam(activeTab, updated)}
-                    rankInfo={rankings.find(r => r.id === activeTab)}
-                    rankings={rankings}
-                  />
-                )}
-
-                {/* Quick overview row */}
-                <div style={{ marginTop: 20, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 12, fontWeight: 600, letterSpacing: 0.5 }}>SCORE OVERVIEW</div>
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${teamIds.length}, 1fr)`, gap: 12 }}>
-                    {teamIds.map(tid => {
-                      const t = teams[tid];
-                      const color = TEAM_COLORS[tid];
-                      const total = t.speakers.reduce((s, sp) => s + Number(sp.score || 0), 0);
-                      const rankInfo = rankings.find(r => r.id === tid);
-                      return (
-                        <div key={tid} style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 4 }}>{tid}</div>
-                          {t.speakers.map(sp => (
-                            <div key={sp.id} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 1 }}>
-                              {sp.role.split(" ").pop()}: <span style={{ color: "#fff", fontWeight: 600 }}>{sp.score}</span>
-                            </div>
-                          ))}
-                          <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color }}>Σ {total}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Rank #{rankInfo?.autoRank}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {judgeTab === "clash" && (
-              <div>
-                <ClashMatrix teams={teams} onUpdate={setClashes} />
-
-                {/* Contradiction tracker */}
-                <div style={{ marginTop: 24 }}>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10, fontWeight: 600, letterSpacing: 0.5 }}>CONTRADICTION TRACKER</div>
-                  {teamIds.map(tid => {
-                    const t = teams[tid];
-                    const color = TEAM_COLORS[tid];
-                    return (
-                      <div key={tid} style={{ marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <div style={{
-                          minWidth: 36, height: 36, borderRadius: 8, background: `${color}20`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 800, color, border: `1px solid ${color}30`,
-                        }}>{tid}</div>
-                        <textarea
-                          value={t.contradictions?.join("\n") || ""}
-                          onChange={e => updateTeam(tid, { ...t, contradictions: e.target.value.split("\n") })}
-                          placeholder={`Any contradictions noted in ${tid}?`}
-                          style={{
-                            flex: 1, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)",
-                            borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", resize: "vertical",
-                            minHeight: 48, outline: "none", lineHeight: 1.5,
-                          }} />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Bench comparison */}
-                {mode === "BP" && (
-                  <div style={{ marginTop: 24 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10, fontWeight: 600, letterSpacing: 0.5 }}>BENCH & HALF ANALYSIS</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      {[
-                        { label: "Government Bench", ids: ["OG", "CG"], color: "#818cf8" },
-                        { label: "Opposition Bench", ids: ["OO", "CO"], color: "#fb923c" },
-                        { label: "Opening Half", ids: ["OG", "OO"], color: "#4ade80" },
-                        { label: "Closing Half", ids: ["CG", "CO"], color: "#f472b6" },
-                      ].map(bench => {
-                        const totals = bench.ids.map(id => teams[id]?.speakers.reduce((s, sp) => s + Number(sp.score || 0), 0) || 0);
-                        const winner = totals[0] > totals[1] ? bench.ids[0] : totals[1] > totals[0] ? bench.ids[1] : "Tied";
-                        return (
-                          <div key={bench.label} style={{
-                            background: `${bench.color}08`, border: `1px solid ${bench.color}20`,
-                            borderRadius: 10, padding: 12,
-                          }}>
-                            <div style={{ fontSize: 11, color: bench.color, fontWeight: 700, marginBottom: 8 }}>{bench.label}</div>
-                            {bench.ids.map((id, i) => (
-                              <div key={id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-                                <span style={{ color: "rgba(255,255,255,0.5)" }}>{id}</span>
-                                <span style={{ fontWeight: 700, color: winner === id ? bench.color : "rgba(255,255,255,0.7)" }}>{totals[i]}</span>
-                              </div>
-                            ))}
-                            <div style={{ marginTop: 8, fontSize: 11, color: bench.color, fontWeight: 600 }}>
-                              {winner === "Tied" ? "⚖️ Tied" : `→ ${winner} leads`}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {judgeTab === "oa" && (
-              <OAPanel teams={teams} rankings={rankings} mode={mode} oaNotes={oaNotes} onUpdateOA={setOANotes} />
-            )}
-          </div>
-
-          {/* Floating timer */}
-          <FloatingTimer mode={mode} />
+// ── CLASH TAB ──
+function renderClashTab(ids,rankings){
+  const pairs=[];
+  for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++) pairs.push([ids[i],ids[j]]);
+  return `
+  <div class="slide-in">
+    <div class="label-xs" style="margin-bottom:10px">Pairwise Clash Notes</div>
+    ${pairs.map(([a,b])=>{
+      const key=[a,b].sort().join("_vs_");
+      return `
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">
+          <span style="font-weight:700;color:${TEAM_COLORS[a]}">${a}</span>
+          <span style="color:rgba(255,255,255,0.25)"> vs </span>
+          <span style="font-weight:700;color:${TEAM_COLORS[b]}">${b}</span>
         </div>
-      );
-    }
+        <textarea class="clash-textarea" oninput="updateClash('${key}',this.value)" placeholder="Who won the ${a} vs ${b} clash? Why?">${esc(S.clashes[key]||"")}</textarea>
+      </div>`;
+    }).join("")}
 
-    // Mount to the root DOM node
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+    <div style="margin-top:24px">
+      <div class="label-xs" style="margin-bottom:10px">Contradiction Tracker</div>
+      ${ids.map(tid=>{
+        const t=S.teams[tid], col=TEAM_COLORS[tid];
+        const val=(t.contradictions||[]).join("\n");
+        return `
+        <div style="margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+          <div style="min-width:36px;height:36px;border-radius:8px;background:${col}20;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${col};border:1px solid ${col}30;flex-shrink:0">${tid}</div>
+          <textarea class="contr-textarea" oninput="updateContradictions('${tid}',this.value)" placeholder="Contradictions noted in ${tid}?">${esc(val)}</textarea>
+        </div>`;
+      }).join("")}
+    </div>
+
+    ${S.mode==="BP"?renderBenchAnalysis(rankings):""}
+  </div>`;
+}
+function renderBenchAnalysis(rankings){
+  const benches=[
+    {label:"Government Bench",ids:["OG","CG"],col:"#818cf8"},
+    {label:"Opposition Bench",ids:["OO","CO"],col:"#fb923c"},
+    {label:"Opening Half",ids:["OG","OO"],col:"#4ade80"},
+    {label:"Closing Half",ids:["CG","CO"],col:"#f472b6"},
+  ];
+  return `
+  <div style="margin-top:24px">
+    <div class="label-xs" style="margin-bottom:10px">Bench &amp; Half Analysis</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${benches.map(b=>{
+        const tots=b.ids.map(id=>S.teams[id]?.speakers.reduce((s,sp)=>s+Number(sp.score||0),0)||0);
+        const winner=tots[0]>tots[1]?b.ids[0]:tots[1]>tots[0]?b.ids[1]:"Tied";
+        return `
+        <div style="background:${b.col}08;border:1px solid ${b.col}20;border-radius:10px;padding:12px">
+          <div style="font-size:11px;color:${b.col};font-weight:700;margin-bottom:8px">${b.label}</div>
+          ${b.ids.map((id,i)=>`<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:rgba(255,255,255,0.5)">${id}</span><span style="font-weight:700;color:${winner===id?b.col:"rgba(255,255,255,0.7)"}">${tots[i]}</span></div>`).join("")}
+          <div style="margin-top:8px;font-size:11px;color:${b.col};font-weight:600">${winner==="Tied"?"⚖️ Tied":"→ "+winner+" leads"}</div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+// ── OA TAB ──
+function renderOATab(rankings){
+  const sorted=[...rankings].sort((a,b)=>a.autoRank-b.autoRank);
+  return `
+  <div class="slide-in">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600">OA Preparation &amp; Ranking Summary</div>
+      <button class="btn btn-primary" onclick="generateOATemplate()">✨ Auto-generate template</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:20px">
+      ${sorted.map((r,i)=>{
+        const t=S.teams[r.id], col=TEAM_COLORS[r.id];
+        return `<div class="oa-rank-card" style="background:${col}10;border:1px solid ${col}30">
+          <div style="font-size:20px">${RANK_EMOJI[i]}</div>
+          <div style="font-size:16px;font-weight:800;color:${col};margin-top:4px">${r.id}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${t?.label||""}</div>
+          <div style="font-size:22px;font-weight:800;margin-top:6px">${r.total}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3)">combined pts</div>
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="label-xs" style="margin-bottom:8px">OA Notes &amp; Script</div>
+    <textarea id="oa-textarea" oninput="S.oaNotes=this.value" placeholder="Write your OA here — structure, key comparisons, advice for teams…">${esc(S.oaNotes)}</textarea>
+    <div style="margin-top:16px;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.15);border-radius:10px;padding:14px">
+      <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:8px">📋 OA CHECKLIST</div>
+      ${[
+        "Announce ranking clearly at the start",
+        "Cover ALL pairwise comparisons (min 6 for BP)",
+        "Identify specific arguments — avoid vague adjectives",
+        "Explain why stronger arguments beat weaker ones",
+        "Separate advice from decision reasons",
+        "Note any split decisions and which comparisons were voted on",
+        "Invite teams for post-round feedback",
+        "Stay within 10–15 minutes",
+      ].map(item=>`<div style="display:flex;gap:8px;margin-bottom:4px;font-size:12px;color:rgba(255,255,255,0.6)"><span style="color:#fbbf24">□</span>${item}</div>`).join("")}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MUTATION HANDLERS (called from inline event handlers)
+// ══════════════════════════════════════════════════════════════════════════════
+function updateTeamField(teamId,field,value){
+  S.teams[teamId][field]=value;
+  // no full re-render needed for textarea inputs
+}
+function updateSpeakerField(teamId,idx,field,value){
+  S.teams[teamId].speakers[idx][field]=value;
+}
+function updateSpeakerScore(teamId,idx,value){
+  const score=Math.max(50,Math.min(100,Number(value)));
+  S.teams[teamId].speakers[idx].score=score;
+  // update both sibling inputs + score display without full re-render
+  const card=document.querySelectorAll(`#content .speaker-card`);
+  // Just re-render the active team panel section
+  partialRenderTeams();
+}
+function partialRenderTeams(){
+  const ids=teamIds();
+  const rankings=computeRankings(S.teams);
+  const content=document.getElementById("content");
+  if(!content||S.judgeTab!=="teams") return;
+  content.innerHTML=renderTeamsTab(ids,rankings);
+}
+function toggleScale(spId){
+  S.showScale[spId]=!S.showScale[spId];
+  partialRenderTeams();
+}
+function addPOI(teamId,idx,type){
+  if(type==="offered") S.teams[teamId].speakers[idx].pois_offered.push("offered");
+  else S.teams[teamId].speakers[idx].pois_taken.push(type);
+  partialRenderTeams();
+}
+function clearPOIs(teamId,idx){
+  S.teams[teamId].speakers[idx].pois_taken=[];
+  S.teams[teamId].speakers[idx].pois_offered=[];
+  partialRenderTeams();
+}
+function addArgument(teamId){
+  S.teams[teamId].arguments.push({id:uid(),text:"",strength:"medium",tag:"Practical",status:"standing"});
+  partialRenderTeams();
+}
+function updateArgField(teamId,argId,field,value){
+  const arg=S.teams[teamId].arguments.find(a=>a.id===argId);
+  if(arg) { arg[field]=value; if(field!=="text") partialRenderTeams(); }
+}
+function deleteArgument(teamId,argId){
+  S.teams[teamId].arguments=S.teams[teamId].arguments.filter(a=>a.id!==argId);
+  partialRenderTeams();
+}
+function updateClash(key,value){ S.clashes[key]=value; }
+function updateContradictions(teamId,value){ S.teams[teamId].contradictions=value.split("\n"); }
+
+function generateOATemplate(){
+  const rankings=computeRankings(S.teams);
+  const sorted=[...rankings].sort((a,b)=>a.autoRank-b.autoRank);
+  let t=`=== OA STRUCTURE ===\n\nRANKING:\n`;
+  sorted.forEach((r,i)=>{ const tm=S.teams[r.id]; t+=`  ${RANK_EMOJI[i]} #${i+1}: ${r.id} (${tm?.label}) — Σ${r.total}\n`; });
+  t+=`\n`;
+  if(S.mode==="BP"){
+    t+=`PAIRWISE COMPARISONS:\n  [ ] OG vs OO — top half\n  [ ] CG vs CO — bottom half\n  [ ] OG vs CG — gov bench\n  [ ] OO vs CO — opp bench\n  [ ] OG vs CO — diagonal\n  [ ] OO vs CG — diagonal\n\n`;
+  } else { t+=`PAIRWISE COMPARISON:\n  [ ] GOV vs OPP\n\n`; }
+  t+=`JUSTIFICATION:\n`;
+  sorted.forEach((r,i)=>{ const tm=S.teams[r.id]; t+=`\n#${i+1} ${r.id} — ${tm?.label}\n`; const args=tm?.arguments||[]; if(args.length>0) t+=`   Args: ${args.map(a=>a.text.slice(0,60)).join("; ")}\n`; t+=`   [Your reasoning…]\n`; });
+  t+=`\n\nGENERAL ADVICE:\n  [Advice separated from decision reasons]\n`;
+  S.oaNotes=t;
+  const ta=document.getElementById("oa-textarea");
+  if(ta) ta.value=t;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SAVE
+// ══════════════════════════════════════════════════════════════════════════════
+async function saveSession(){
+  if(S.saving) return;
+  // collect any live textarea values (for textareas that don't trigger re-render)
+  const titleEl=document.getElementById("title-input"); if(titleEl) S.sessionTitle=titleEl.value;
+  const motionEl=document.getElementById("motion-input"); if(motionEl) S.motion=motionEl.value;
+  const roundEl=document.getElementById("round-input"); if(roundEl) S.round=roundEl.value;
+  const oaEl=document.getElementById("oa-textarea"); if(oaEl) S.oaNotes=oaEl.value;
+
+  S.saving=true;
+  const btn=document.getElementById("save-btn");
+  if(btn) btn.textContent="Saving…";
+
+  const rankings=computeRankings(S.teams);
+  const sessionData={
+    id:S.editingId||uid(),
+    title:S.sessionTitle||`${S.mode} Session`,
+    mode:S.mode, motion:S.motion, round:S.round,
+    teams:S.teams, oaNotes:S.oaNotes, clashes:S.clashes,
+    rankings:rankings.map(r=>({id:r.id,total:r.total,autoRank:r.autoRank})),
+    savedAt:new Date().toISOString(), created_at:new Date().toISOString(),
+  };
+
+  // Try Supabase
+  if(S.editingId){
+    await supaFetch(`debate_sessions?id=eq.${S.editingId}`,{method:"PATCH",body:JSON.stringify(sessionData)});
+  } else {
+    await supaFetch("debate_sessions",{method:"POST",body:JSON.stringify(sessionData)});
+  }
+
+  S.editingId=sessionData.id;
+  const existing=S.savedNotes.filter(n=>n.id!==sessionData.id);
+  S.savedNotes=[sessionData,...existing];
+  persistSaved();
+
+  S.saving=false;
+  S.saveMsg="✓ Saved!";
+  if(btn){ btn.textContent="✓ Saved!"; btn.className="btn btn-success"; }
+  setTimeout(()=>{
+    S.saveMsg="";
+    const b=document.getElementById("save-btn");
+    if(b){ b.textContent="💾 Save"; b.className="btn btn-primary"; }
+  },2500);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BIND JUDGE VIEW
+// ══════════════════════════════════════════════════════════════════════════════
+function bindJudge(){
+  // inputs that update state live
+  const titleEl=document.getElementById("title-input");
+  if(titleEl) titleEl.addEventListener("input",()=>S.sessionTitle=titleEl.value);
+  const motionEl=document.getElementById("motion-input");
+  if(motionEl) motionEl.addEventListener("input",()=>S.motion=motionEl.value);
+  const roundEl=document.getElementById("round-input");
+  if(roundEl) roundEl.addEventListener("input",()=>S.round=roundEl.value);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════════════
+loadSaved();
+render();
+</script>
 </body>
 </html>
