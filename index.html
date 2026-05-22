@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Adjudicator — Debate Judge Notes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -107,32 +108,62 @@ button{cursor:pointer}
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
-// CONFIG
+// CONFIG — Supabase JS SDK (handles auth headers correctly)
 // ══════════════════════════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://wflbkylzmedfvpbtosgg.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Xx69UKocPcHChda3ea76JA_mguKTk4Z";
 
-async function supaFetch(path, opts = {}) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: opts.prefer || "return=representation",
-        ...(opts.extraHeaders || {})
-      },
-      method: opts.method || "GET",
-      body: opts.body
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-  } catch(e) {
-    console.warn("Supabase:", e.message);
-    return null;
-  }
+// Initialise the official client — this uses the publishable key correctly
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const TABLE = "debate_sessions";
+
+// ── Convert app session → DB row (camelCase → snake_case) ────────────────────
+function sessionToDb(s) {
+  return {
+    id:       s.id,
+    title:    s.title    || "",
+    mode:     s.mode,
+    motion:   s.motion   || "",
+    round:    s.round    || "",
+    teams:    s.teams    || {},
+    clashes:  s.clashes  || {},
+    rankings: s.rankings || [],
+    oa_notes: s.oaNotes  || "",
+  };
 }
+
+// ── Convert DB row → app session (snake_case → camelCase) ────────────────────
+function dbToSession(row) {
+  return {
+    id:         row.id,
+    title:      row.title    || "",
+    mode:       row.mode,
+    motion:     row.motion   || "",
+    round:      row.round    || "",
+    teams:      row.teams    || {},
+    clashes:    row.clashes  || {},
+    rankings:   row.rankings || [],
+    oaNotes:    row.oa_notes || "",
+    savedAt:    row.updated_at || row.created_at || new Date().toISOString(),
+    created_at: row.created_at || new Date().toISOString(),
+  };
+}
+
+// ── Toast notification ────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const existing = document.getElementById("adj-toast");
+  if (existing) existing.remove();
+  const colors = { success: "#4ade80", warn: "#f59e0b", error: "#f87171", info: "#818cf8" };
+  const col = colors[type] || colors.info;
+  const el = document.createElement("div");
+  el.id = "adj-toast";
+  el.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(10,10,20,0.97);border:1px solid ${col}50;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;color:${col};box-shadow:0 4px 24px rgba(0,0,0,0.6);white-space:nowrap;pointer-events:none;transition:opacity .3s`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 2800);
+}
+
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -251,12 +282,93 @@ function computeRankings(teams){
 }
 function teamIds(){ return S.mode==="BP"?BP_TEAMS.map(t=>t.id):AP_TEAMS.map(t=>t.id); }
 
-function loadSaved(){
-  try{ S.savedNotes=JSON.parse(localStorage.getItem("adj_sessions")||"[]"); }
-  catch(e){ S.savedNotes=[]; }
+async function loadSaved() {
+  // 1. Load from localStorage immediately so the UI is instant
+  try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); } catch(e) { S.savedNotes = []; }
+
+  // 2. Fetch from Supabase using the JS SDK (handles auth correctly)
+  try {
+    showToast("☁️ Syncing from cloud…", "info");
+    const { data, error } = await db
+      .from(TABLE)
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    if (data && data.length > 0) {
+      const cloudNotes = data.map(dbToSession);
+      // Cloud wins for same id; keep any local-only sessions too
+      const cloudIds = new Set(cloudNotes.map(n => n.id));
+      const localOnly = S.savedNotes.filter(n => !cloudIds.has(n.id));
+      S.savedNotes = [...cloudNotes, ...localOnly];
+      localStorage.setItem("adj_sessions", JSON.stringify(S.savedNotes));
+      showToast("✓ Synced " + cloudNotes.length + " session" + (cloudNotes.length !== 1 ? "s" : "") + " from cloud", "success");
+    } else {
+      showToast("☁️ No cloud sessions yet", "info");
+    }
+    render();
+  } catch(e) {
+    console.warn("Cloud sync failed:", e.message);
+    showToast("⚠ Cloud offline — showing local sessions", "warn");
+    render();
+  }
 }
-function persistSaved(){
-  localStorage.setItem("adj_sessions",JSON.stringify(S.savedNotes));
+
+function persistSaved() {
+  localStorage.setItem("adj_sessions", JSON.stringify(S.savedNotes));
+}
+
+// Convert DB row (snake_case) → app session (camelCase)
+function dbToSession(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    mode: row.mode,
+    motion: row.motion,
+    round: row.round,
+    teams: row.teams,
+    clashes: row.clashes,
+    rankings: row.rankings,
+    oaNotes: row.oa_notes,
+    savedAt: row.updated_at || row.created_at,
+    created_at: row.created_at,
+  };
+}
+
+// Convert app session (camelCase) → DB row (snake_case)
+function sessionToDb(session) {
+  return {
+    id: session.id,
+    title: session.title || "",
+    mode: session.mode,
+    motion: session.motion || "",
+    round: session.round || "",
+    teams: session.teams || {},
+    clashes: session.clashes || {},
+    rankings: session.rankings || [],
+    oa_notes: session.oaNotes || "",
+  };
+}
+
+// Simple toast system
+let toastTimer = null;
+function showToast(msg, type) {
+  let el = document.getElementById("sync-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "sync-toast";
+    el.style.cssText = "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:opacity .3s;pointer-events:none";
+    document.body.appendChild(el);
+  }
+  const colors = { success: "#22c55e", warn: "#f59e0b", info: "#60a5fa", error: "#ef4444" };
+  el.style.background = "rgba(10,10,15,0.95)";
+  el.style.border = "1px solid " + (colors[type] || "#60a5fa") + "50";
+  el.style.color = colors[type] || "#60a5fa";
+  el.style.opacity = "1";
+  el.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 3000);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -437,7 +549,10 @@ function renderSaved(){
           <div style="font-size:22px;font-weight:800">Saved Sessions</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">${notes.length} session${notes.length!==1?"s":""} saved</div>
         </div>
+        <div style="display:flex;gap:8px">
+        <button class="btn" onclick="loadSaved()" style="font-size:11px">☁️ Sync</button>
         <button class="btn btn-primary" onclick="S.view='home';render()">+ New Session</button>
+      </div>
       </div>
       ${notes.length===0?`<div style="text-align:center;padding:60px 0;color:rgba(255,255,255,0.25)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:14px">No saved sessions yet</div></div>`:""}
       <div id="saved-list" style="display:flex;flex-direction:column;gap:10px">
@@ -479,11 +594,19 @@ function exportSession(id){
   const a=document.createElement("a"); a.href=url; a.download=`${note.title}.json`; a.click();
   URL.revokeObjectURL(url);
 }
-function deleteSession(id){
+async function deleteSession(id){
   if(!confirm("Delete this session permanently?")) return;
   S.savedNotes=S.savedNotes.filter(n=>n.id!==id);
   persistSaved();
   render();
+  // Also delete from cloud using SDK
+  try {
+    const { error } = await db.from(TABLE).delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    showToast("🗑 Deleted from cloud", "info");
+  } catch(e) {
+    console.warn("Cloud delete failed:", e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -861,7 +984,7 @@ function generateOATemplate(){
 // ══════════════════════════════════════════════════════════════════════════════
 async function saveSession(){
   if(S.saving) return;
-  // collect any live textarea values (for textareas that don't trigger re-render)
+  // Flush live DOM values into state before saving
   const titleEl=document.getElementById("title-input"); if(titleEl) S.sessionTitle=titleEl.value;
   const motionEl=document.getElementById("motion-input"); if(motionEl) S.motion=motionEl.value;
   const roundEl=document.getElementById("round-input"); if(roundEl) S.round=roundEl.value;
@@ -869,45 +992,63 @@ async function saveSession(){
 
   S.saving=true;
   const btn=document.getElementById("save-btn");
-  if(btn) btn.textContent="Saving…";
+  if(btn){ btn.textContent="Saving…"; btn.disabled=true; }
 
-  const rankings=computeRankings(S.teams);
-  const sessionData={
-    id:S.editingId||uid(),
-    title:S.sessionTitle||`${S.mode} Session`,
-    mode:S.mode, motion:S.motion, round:S.round,
-    teams:S.teams, oaNotes:S.oaNotes, clashes:S.clashes,
-    rankings:rankings.map(r=>({id:r.id,total:r.total,autoRank:r.autoRank})),
-    savedAt:new Date().toISOString(), created_at:new Date().toISOString(),
+  const now = new Date().toISOString();
+  const sessionId = S.editingId || uid();
+  const rankings = computeRankings(S.teams);
+
+  const sessionData = {
+    id:       sessionId,
+    title:    S.sessionTitle || (S.mode + " Session"),
+    mode:     S.mode,
+    motion:   S.motion,
+    round:    S.round,
+    teams:    S.teams,
+    oaNotes:  S.oaNotes,
+    clashes:  S.clashes,
+    rankings: rankings.map(r=>({id:r.id, total:r.total, autoRank:r.autoRank})),
+    savedAt:  now,
+    created_at: now,
   };
 
-  // Try Supabase
-  if(S.editingId){
-    await supaFetch(`debate_sessions?id=eq.${S.editingId}`,{method:"PATCH",body:JSON.stringify(sessionData)});
-  } else {
-    await supaFetch("debate_sessions",{method:"POST",body:JSON.stringify(sessionData)});
-  }
-
-  S.editingId=sessionData.id;
-  const existing=S.savedNotes.filter(n=>n.id!==sessionData.id);
-  S.savedNotes=[sessionData,...existing];
+  // ── 1. Save to localStorage immediately ──
+  S.editingId = sessionId;
+  const existing = S.savedNotes.filter(n=>n.id !== sessionId);
+  S.savedNotes = [sessionData, ...existing];
   persistSaved();
 
+  // ── 2. Upsert to Supabase using SDK (handles key + conflict resolution) ──
+  let cloudOk = false;
+  try {
+    const dbRow = sessionToDb(sessionData);
+    const { error } = await db
+      .from(TABLE)
+      .upsert(dbRow, { onConflict: "id" });
+
+    if (error) throw new Error(error.message);
+    cloudOk = true;
+  } catch(e) {
+    console.error("☁️ Cloud save failed:", e.message);
+    showToast("⚠️ Cloud save failed — stored locally only", "warn");
+  }
+
   S.saving=false;
-  S.saveMsg="✓ Saved!";
-  if(btn){ btn.textContent="✓ Saved!"; btn.className="btn btn-success"; }
+  const label = cloudOk ? "☁️ Saved!" : "💾 Local only";
+  S.saveMsg = label;
+  if(btn){ btn.textContent=label; btn.className="btn btn-success"; btn.disabled=false; }
+  if(cloudOk) showToast("☁️ Session saved to cloud", "success");
   setTimeout(()=>{
     S.saveMsg="";
     const b=document.getElementById("save-btn");
     if(b){ b.textContent="💾 Save"; b.className="btn btn-primary"; }
-  },2500);
+  }, 3000);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BIND JUDGE VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 function bindJudge(){
-  // inputs that update state live
   const titleEl=document.getElementById("title-input");
   if(titleEl) titleEl.addEventListener("input",()=>S.sessionTitle=titleEl.value);
   const motionEl=document.getElementById("motion-input");
@@ -919,8 +1060,11 @@ function bindJudge(){
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
-loadSaved();
+// 1. Show home instantly from localStorage
+try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); } catch(e) { S.savedNotes = []; }
 render();
+// 2. Sync from Supabase in background (re-renders when done)
+loadSaved();
 </script>
 </body>
 </html>
