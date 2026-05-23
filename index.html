@@ -10,98 +10,178 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100vh;background:#0a0a0f;color:#fff;font-family:'DM Sans','Segoe UI',sans-serif}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);transition:background .3s,color .3s}
+:root{
+  --bg:#0a0a0f;--bg2:#111118;--bg3:rgba(255,255,255,0.04);--bg4:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.09);--border2:rgba(255,255,255,0.14);
+  --text:#f0f0f5;--text2:rgba(255,255,255,0.55);--text3:rgba(255,255,255,0.28);
+  --accent:#818cf8;--accent2:rgba(129,140,248,0.18);--accent3:rgba(129,140,248,0.35);
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --font:'DM Sans','Segoe UI',sans-serif;--font-mono:'DM Mono','Courier New',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --card-bg:rgba(255,255,255,0.035);
+  --topbar-bg:rgba(8,8,14,0.98);
+}
+body.theme-light{
+  --bg:#f4f4f8;--bg2:#fff;--bg3:rgba(0,0,0,0.04);--bg4:rgba(0,0,0,0.07);
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --text:#111118;--text2:rgba(0,0,0,0.55);--text3:rgba(0,0,0,0.3);
+  --card-bg:rgba(255,255,255,0.8);--topbar-bg:rgba(244,244,248,0.98);
+}
+body.font-large{ font-size:15px; }
+body.font-small{ font-size:12px; }
+body.compact #content{ padding-top:12px; }
+body.compact .speaker-card{ padding:10px; }
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 input,textarea,select,button{font-family:inherit}
-textarea::placeholder,input::placeholder{color:rgba(255,255,255,0.2)}
+textarea::placeholder,input::placeholder{color:var(--text3)}
 select option{background:#1a1a2e;color:#fff}
 button{cursor:pointer}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
-.fade-in{animation:fadeIn 0.4s ease both}
-.slide-in{animation:slideIn 0.25s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.fade-in{animation:fadeIn .4s ease both}
+.slide-in{animation:slideIn .25s ease both}
+.pop-in{animation:popIn .2s ease both}
 #app{min-height:100vh}
 
-/* ── reusable atoms ── */
+/* ── atoms ── */
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px}
-.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px}
-.label-xs{font-size:11px;color:rgba(255,255,255,0.35);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
-.note-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#fff;font-size:12px;padding:10px 12px;resize:vertical;min-height:60px;outline:none;line-height:1.6;font-family:'DM Sans',sans-serif}
-.note-textarea:focus{border-color:rgba(129,140,248,0.4)}
-.btn{padding:6px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);font-size:12px;font-weight:600;transition:all .15s}
-.btn:hover{background:rgba(255,255,255,0.09);color:#fff}
-.btn-primary{background:rgba(129,140,248,0.18);color:#818cf8;border-color:rgba(129,140,248,0.35)}
+.label-xs{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px;display:block}
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── textarea / input ── */
+.note-textarea{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:10px 13px;resize:vertical;min-height:64px;outline:none;line-height:1.65;font-family:var(--font);transition:border-color .15s}
+.note-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(129,140,248,0.1)}
+
+/* ── buttons ── */
+.btn{padding:7px 16px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--accent2);color:var(--accent);border-color:var(--accent3)}
 .btn-primary:hover{background:rgba(129,140,248,0.28)}
-.btn-success{background:rgba(34,197,94,0.12);color:#4ade80;border-color:rgba(34,197,94,0.25)}
-.btn-danger{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.2)}
+.btn-success{background:rgba(34,197,94,0.13);color:#4ade80;border-color:rgba(34,197,94,0.3)}
+.btn-danger{background:rgba(239,68,68,0.11);color:#f87171;border-color:rgba(239,68,68,0.25)}
+.btn-icon{padding:6px 10px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:15px;line-height:1;transition:all .15s}
+.btn-icon:hover{background:var(--bg4);color:var(--text)}
 
 /* ── timer ── */
-#timer-widget{position:fixed;bottom:24px;right:24px;z-index:9999;width:248px;background:rgba(6,6,14,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px 20px;backdrop-filter:blur(16px);box-shadow:0 8px 40px rgba(0,0,0,0.6);transition:border-color .3s}
+#timer-widget{position:fixed;bottom:24px;right:24px;z-index:9999;width:252px;background:rgba(4,4,12,0.97);border:1.5px solid rgba(255,255,255,0.12);border-radius:18px;padding:18px 20px;backdrop-filter:blur(20px);box-shadow:0 12px 48px rgba(0,0,0,0.7);transition:border-color .3s}
 #timer-widget.over{border-color:#ef4444;animation:blink .9s step-end infinite}
-#timer-mini{position:fixed;bottom:24px;right:24px;z-index:9999;background:rgba(6,6,14,0.96);border-radius:40px;padding:8px 18px;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,0.5)}
-#timer-mini.over{background:#ef4444;animation:blink .9s step-end infinite}
-#timer-display{font-family:'DM Mono',monospace;font-size:36px;font-weight:700;letter-spacing:2px;text-align:center;line-height:1;transition:color .3s}
-#timer-bar-track{background:rgba(255,255,255,0.1);border-radius:4px;height:4px;margin:10px 0}
-#timer-bar-fill{height:100%;border-radius:4px;transition:width .6s linear,background .3s}
-.timer-phase-btn{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid;cursor:pointer;transition:all .15s}
+#timer-mini{position:fixed;bottom:24px;right:24px;z-index:9999;background:rgba(4,4,12,0.97);border:1.5px solid rgba(255,255,255,0.12);border-radius:40px;padding:9px 20px;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 24px rgba(0,0,0,0.5)}
+#timer-mini.over{background:#ef4444;border-color:#ef4444;animation:blink .9s step-end infinite}
+#timer-display{font-family:var(--font-mono);font-size:38px;font-weight:700;letter-spacing:3px;text-align:center;line-height:1;transition:color .3s}
+#timer-bar-track{background:rgba(255,255,255,0.1);border-radius:4px;height:5px;margin:12px 0 8px}
+#timer-bar-fill{height:100%;border-radius:4px;transition:width .7s linear,background .3s}
+.timer-phase-btn{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid;cursor:pointer;transition:all .15s}
 
 /* ── top bar ── */
-#topbar{position:sticky;top:0;z-index:100;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.06)}
-#topbar-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:10px;height:54px;padding:0 16px}
-#motion-bar{max-width:1400px;margin:0 auto;padding:0 16px 8px}
-#motion-input{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;color:rgba(255,255,255,0.8);font-size:13px;padding:6px 12px;outline:none;font-style:italic}
-#motion-input:focus{border-color:rgba(129,140,248,0.3)}
-#title-input{background:transparent;border:none;color:#fff;font-size:14px;font-weight:600;outline:none;flex:1;min-width:0}
-#round-input{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#fff;font-size:12px;padding:4px 10px;width:80px;outline:none}
-.tab-bar{max-width:1400px;margin:0 auto;display:flex;border-top:1px solid rgba(255,255,255,0.05);padding:0 16px}
-.main-tab{padding:10px 16px;background:none;border:none;color:rgba(255,255,255,0.35);border-bottom:2px solid transparent;font-size:12px;font-weight:600;transition:all .15s}
-.main-tab.active{color:#818cf8;border-bottom-color:#818cf8}
-.main-tab:hover{color:rgba(255,255,255,0.7)}
+#topbar{position:sticky;top:0;z-index:100;background:var(--topbar-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+#topbar-inner{max-width:1440px;margin:0 auto;display:flex;align-items:center;gap:10px;height:56px;padding:0 20px}
+#motion-bar{max-width:1440px;margin:0 auto;padding:0 20px 10px}
+#motion-input{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-size:13px;padding:7px 14px;outline:none;font-style:italic;transition:border-color .15s}
+#motion-input:focus{border-color:rgba(129,140,248,0.4);color:var(--text)}
+#title-input{background:transparent;border:none;color:var(--text);font-size:14px;font-weight:700;outline:none;flex:1;min-width:0}
+#round-input{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:5px 10px;width:88px;outline:none}
+.tab-bar{max-width:1440px;margin:0 auto;display:flex;border-top:1px solid var(--border);padding:0 20px;gap:2px}
+.main-tab{padding:10px 18px;background:none;border:none;color:var(--text3);border-bottom:2.5px solid transparent;font-size:12px;font-weight:700;transition:all .15s;letter-spacing:.2px}
+.main-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.main-tab:hover{color:var(--text2)}
 
 /* ── content ── */
-#content{max-width:1400px;margin:0 auto;padding:20px 16px 140px}
+#content{max-width:1440px;margin:0 auto;padding:24px 20px 160px}
 
 /* ── team tab selector ── */
-.team-tab-btn{padding:8px 18px;border-radius:10px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);transition:all .15s;white-space:nowrap}
-.team-tab-btn.active{font-weight:700}
+.team-tabs-row{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:6px;align-items:center}
+.team-tab-btn{padding:9px 20px;border-radius:10px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s;white-space:nowrap}
+.team-tab-btn.active{font-weight:800}
+
+/* ── team panel ── */
+.team-panel{background:var(--card-bg);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.team-panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 
 /* ── speaker card ── */
-.speaker-card{background:rgba(255,255,255,0.03);border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid;border-top:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06)}
-.score-display{font-size:24px;font-weight:800;line-height:1}
-.poi-btn{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;border:1px solid;cursor:pointer;transition:all .15s}
-.poi-btn:hover{opacity:.8}
+.speaker-card{background:var(--bg3);border-radius:12px;padding:16px;margin-bottom:12px;border-left:3.5px solid;border:1.5px solid var(--border);border-left-width:3.5px;transition:border-color .15s}
+.speaker-card:hover{border-color:var(--border2)}
+.score-display{font-size:28px;font-weight:800;line-height:1;font-family:var(--font-mono)}
+.score-band{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-top:3px}
+
+/* ── poi buttons ── */
+.poi-btn{font-size:10px;padding:4px 10px;border-radius:20px;font-weight:700;border:1.5px solid;cursor:pointer;transition:all .15s;line-height:1.4}
+.poi-btn:hover{filter:brightness(1.2)}
 
 /* ── argument card ── */
-.arg-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:8px}
-.arg-select{font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15)}
-.arg-textarea{width:100%;background:transparent;border:none;color:#fff;font-size:13px;resize:none;outline:none;line-height:1.5;min-height:36px;font-family:'DM Sans',sans-serif}
+.arg-card{background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:13px;margin-bottom:9px;transition:border-color .15s}
+.arg-card:hover{border-color:var(--border2)}
+.arg-select{font-size:11px;padding:3px 8px;border-radius:var(--radius-xs);background:var(--bg4);color:var(--text);border:1.5px solid var(--border);outline:none;cursor:pointer}
+.arg-textarea{width:100%;background:transparent;border:none;color:var(--text);font-size:13px;resize:none;outline:none;line-height:1.55;min-height:36px;font-family:var(--font)}
+.arg-status-standing{background:rgba(255,255,255,0.08)}
+.arg-status-rebutted{background:rgba(239,68,68,0.12)}
+.arg-status-conceded{background:rgba(34,197,94,0.12)}
+.arg-status-dropped{background:rgba(120,120,120,0.12)}
 
-/* ── overview row ── */
-#score-overview{margin-top:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:16px}
+/* ── score overview ── */
+#score-overview{margin-top:20px;background:var(--bg3);border:1.5px solid var(--border);border-radius:14px;padding:20px}
+.score-overview-col{text-align:center;padding:12px;border-radius:10px;background:var(--bg4)}
 
 /* ── clash ── */
-.clash-textarea{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;color:#fff;font-size:12px;padding:8px 10px;resize:vertical;min-height:52px;outline:none;line-height:1.5;font-family:'DM Sans',sans-serif}
-.clash-textarea:focus{border-color:rgba(129,140,248,0.3)}
-.contr-textarea{width:100%;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.1);border-radius:8px;color:#fff;font-size:12px;padding:8px 10px;resize:vertical;min-height:48px;outline:none;line-height:1.5;font-family:'DM Sans',sans-serif}
+.clash-pair-label{font-size:12px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.clash-textarea{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:10px 12px;resize:vertical;min-height:56px;outline:none;line-height:1.6;font-family:var(--font);transition:border-color .15s}
+.clash-textarea:focus{border-color:var(--accent)}
+.contr-textarea{width:100%;background:rgba(239,68,68,0.04);border:1.5px solid rgba(239,68,68,0.15);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:10px 12px;resize:vertical;min-height:52px;outline:none;line-height:1.6;font-family:var(--font);transition:border-color .15s}
+.contr-textarea:focus{border-color:rgba(239,68,68,0.4)}
 
 /* ── OA ── */
-#oa-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(129,140,248,0.2);border-radius:10px;color:#fff;font-size:13px;padding:14px 16px;resize:vertical;min-height:300px;outline:none;line-height:1.7;font-family:'DM Mono',monospace}
-#oa-textarea:focus{border-color:rgba(129,140,248,0.45)}
+#oa-textarea{width:100%;background:var(--bg3);border:1.5px solid rgba(129,140,248,0.25);border-radius:12px;color:var(--text);font-size:13px;padding:16px 18px;resize:vertical;min-height:320px;outline:none;line-height:1.75;font-family:var(--font-mono)}
+#oa-textarea:focus{border-color:rgba(129,140,248,0.5);box-shadow:0 0 0 3px rgba(129,140,248,0.08)}
 
 /* ── saved list ── */
-.saved-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s}
-.saved-card:hover{border-color:rgba(255,255,255,0.14)}
+.saved-card{background:var(--card-bg);border:1.5px solid var(--border);border-radius:14px;padding:18px;display:flex;gap:16px;align-items:flex-start;transition:border-color .15s,box-shadow .15s}
+.saved-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
 
 /* ── scale popup ── */
-.scale-popup{background:rgba(0,0,0,0.5);border-radius:8px;padding:10px;max-height:160px;overflow-y:auto;font-size:11px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.07)}
+.scale-popup{background:rgba(0,0,0,0.55);border-radius:10px;padding:12px;max-height:170px;overflow-y:auto;font-size:11px;margin-bottom:10px;border:1px solid var(--border)}
 
 /* ── home ── */
-.mode-card{padding:24px 20px;border-radius:16px;cursor:pointer;text-align:left;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);transition:all .2s;outline:none}
-.mode-card:hover{background:rgba(129,140,248,0.1);border-color:rgba(129,140,248,0.4)}
+.mode-card{padding:26px 22px;border-radius:18px;cursor:pointer;text-align:left;background:var(--card-bg);border:1.5px solid var(--border);transition:all .2s;outline:none;box-shadow:0 2px 12px rgba(0,0,0,0.3)}
+.mode-card:hover{background:rgba(129,140,248,0.09);border-color:rgba(129,140,248,0.45);transform:translateY(-2px);box-shadow:0 8px 28px rgba(129,140,248,0.15)}
 
 /* ── OA rank cards ── */
-.oa-rank-card{border-radius:10px;padding:10px 12px;text-align:center}
+.oa-rank-card{border-radius:12px;padding:14px;text-align:center;border:1.5px solid var(--border)}
+
+/* ── bench analysis ── */
+.bench-card{border-radius:12px;padding:14px;border:1.5px solid var(--border)}
+
+/* ── settings panel ── */
+.settings-overlay{position:fixed;inset:0;z-index:88000;background:rgba(0,0,0,0.65);display:flex;align-items:flex-start;justify-content:flex-end;backdrop-filter:blur(8px)}
+.settings-panel{background:var(--bg2);border-left:1.5px solid var(--border);width:100%;max-width:460px;height:100vh;overflow-y:auto;display:flex;flex-direction:column;animation:slideInRight .22s cubic-bezier(.22,1,.36,1) both;box-shadow:-12px 0 48px rgba(0,0,0,0.5)}
+@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.settings-header{padding:20px 24px 16px;border-bottom:1.5px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:2;display:flex;align-items:center;justify-content:space-between}
+.settings-section{padding:20px 24px;border-bottom:1px solid var(--border)}
+.settings-section:last-child{border-bottom:none;padding-bottom:40px}
+.settings-section-title{font-size:10px;font-weight:800;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.settings-section-title::after{content:"";flex:1;height:1px;background:var(--accent);opacity:.2}
+.setting-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:16px}
+.setting-row:last-child{margin-bottom:0}
+.setting-label{font-size:13px;font-weight:600;color:var(--text)}
+.setting-desc{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.45}
+.toggle{width:44px;height:25px;border-radius:13px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;margin-top:1px}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 5px rgba(0,0,0,0.4)}
+.toggle.on{background:var(--accent)}.toggle.off{background:rgba(255,255,255,0.18)}
+.toggle.on::after{transform:translateX(19px)}
+.setting-select{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:6px 10px;outline:none;cursor:pointer;min-width:120px}
+.color-swatch{width:28px;height:28px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:all .15s}
+.color-swatch:hover{transform:scale(1.12)}
+.color-swatch.selected{border-color:#fff;box-shadow:0 0 0 2px var(--accent);transform:scale(1.12)}
+.swatch-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.settings-chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.settings-chip{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s}
+.settings-chip.selected{background:var(--accent2);color:var(--accent);border-color:var(--accent3)}
+.settings-chip:hover{border-color:var(--border2)}
+
+/* ── section headers in judge view ── */
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.section-header-line{flex:1;height:1px;background:var(--border)}
 </style>
 </head>
 <body>
@@ -181,8 +261,285 @@ function showToast(msg, type) {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CONSTANTS
+// PREFERENCES — stored locally per device, never synced to cloud
 // ══════════════════════════════════════════════════════════════════════════════
+const PREFS_KEY = "adj_prefs_v1";
+const ACCENT_OPTIONS = [
+  { name:"Indigo",   val:"#818cf8" },
+  { name:"Violet",   val:"#a78bfa" },
+  { name:"Sky",      val:"#38bdf8" },
+  { name:"Teal",     val:"#2dd4bf" },
+  { name:"Emerald",  val:"#4ade80" },
+  { name:"Amber",    val:"#fbbf24" },
+  { name:"Rose",     val:"#fb7185" },
+  { name:"Orange",   val:"#fb923c" },
+];
+const FONT_OPTIONS = [
+  { name:"DM Sans (default)", val:"'DM Sans','Segoe UI',sans-serif" },
+  { name:"System UI",         val:"system-ui,sans-serif" },
+  { name:"Inter",             val:"'Inter','Segoe UI',sans-serif" },
+  { name:"Georgia (serif)",   val:"Georgia,serif" },
+];
+const BG_OPTIONS = [
+  { name:"Deep Black",  val:"#0a0a0f" },
+  { name:"Soft Black",  val:"#0f1117" },
+  { name:"Dark Navy",   val:"#0a0f1e" },
+  { name:"Dark Slate",  val:"#0d1117" },
+  { name:"Charcoal",    val:"#111827" },
+];
+
+let PREFS = {
+  theme:              "dark",        // dark | light
+  accent:             "#818cf8",
+  bgColor:            "#0a0a0f",
+  fontChoice:         "'DM Sans','Segoe UI',sans-serif",
+  fontSize:           "default",     // small | default | large
+  compactMode:        false,
+  showScoreBand:      true,          // show score label (Brilliant / Good / etc.) on speaker cards
+  showBenchAnalysis:  true,          // show bench/half comparison in clash tab
+  showOAChecklist:    true,          // show the OA checklist
+  timerPosition:      "bottom-right",// bottom-right | bottom-left
+  timerAutoStart:     false,         // auto-start prep timer on session start
+  defaultTab:         "teams",       // teams | clash | oa
+  argTagsVisible:     true,          // show/hide the argument tag chips
+  poiCounterVisible:  true,          // show the POI tracker on speaker cards
+  showMotionBar:      true,          // show the motion input under topbar
+  animationsEnabled:  true,
+  confirmOnDelete:    true,
+  draftInterval:      15,            // seconds between auto-drafts (10|15|30|60)
+  scoreSliderVisible: true,          // show the score range slider
+  rankingBadgeInTab:  true,          // show auto-rank badge in team tab buttons
+};
+
+function loadPrefs() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+    Object.assign(PREFS, stored);
+  } catch(e) {}
+}
+function savePrefs() {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(PREFS));
+}
+function applyPrefs() {
+  const b = document.body;
+  // Theme
+  b.classList.toggle("theme-light", PREFS.theme === "light");
+  // Font size
+  b.classList.remove("font-large","font-small");
+  if (PREFS.fontSize === "large") b.classList.add("font-large");
+  if (PREFS.fontSize === "small") b.classList.add("font-small");
+  // Compact
+  b.classList.toggle("compact", PREFS.compactMode);
+  // Animations
+  b.classList.toggle("no-anim", !PREFS.animationsEnabled);
+  // CSS vars
+  const r = document.documentElement.style;
+  r.setProperty("--accent", PREFS.accent);
+  r.setProperty("--accent2", PREFS.accent + "22");
+  r.setProperty("--accent3", PREFS.accent + "44");
+  if (PREFS.theme !== "light") {
+    r.setProperty("--bg", PREFS.bgColor);
+  }
+  r.setProperty("--font", PREFS.fontChoice);
+  // Timer position
+  const tw = document.getElementById("timer-widget") || document.getElementById("timer-mini");
+  if (tw) {
+    tw.style.left  = PREFS.timerPosition === "bottom-left" ? "24px" : "";
+    tw.style.right = PREFS.timerPosition === "bottom-left" ? ""     : "24px";
+  }
+}
+
+function setPref(key, val) {
+  PREFS[key] = val;
+  savePrefs();
+  applyPrefs();
+  // Partial re-renders for things that need it
+  if (["showMotionBar","defaultTab","showBenchAnalysis","showOAChecklist"].includes(key) && S.view === "judge") {
+    render();
+  }
+}
+
+// ── Settings panel render ────────────────────────────────────────────────────
+function openSettings() {
+  const existing = document.getElementById("settings-overlay");
+  if (existing) { existing.remove(); return; }
+
+  const overlay = document.createElement("div");
+  overlay.className = "settings-overlay";
+  overlay.id = "settings-overlay";
+  overlay.innerHTML = renderSettingsPanel();
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if(e.target === overlay) closeSettings(); });
+}
+function closeSettings() {
+  const el = document.getElementById("settings-overlay");
+  if (el) el.remove();
+}
+
+function tog(key) {
+  return `<button class="toggle ${PREFS[key]?"on":"off"}" onclick="setPref('${key}',!PREFS['${key}']);this.className='toggle '+(PREFS['${key}']?'on':'off')"></button>`;
+}
+function sel(key, options) {
+  return `<select class="setting-select" onchange="setPref('${key}',this.value)">
+    ${options.map(o=>`<option value="${o.val}" ${PREFS[key]===o.val?"selected":""}>${o.name}</option>`).join("")}
+  </select>`;
+}
+function chips(key, options) {
+  return `<div class="settings-chip-row">${options.map(o=>`<button class="settings-chip ${PREFS[key]===o.val?"selected":""}" onclick="setPref('${key}','${o.val}');document.querySelectorAll('[data-chip-group=\\'${key}\\']').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')" data-chip-group="${key}">${o.name}</button>`).join("")}</div>`;
+}
+
+function renderSettingsPanel() {
+  const swatches = (key, opts) => `<div class="swatch-row">${opts.map(o=>`<button class="color-swatch ${PREFS[key]===o.val?"selected":""}" title="${o.name}" style="background:${o.val}" onclick="setPref('${key}','${o.val}');document.querySelectorAll('[data-sw=\\'${key}\\']').forEach(s=>s.classList.remove('selected'));this.classList.add('selected')" data-sw="${key}"></button>`).join("")}</div>`;
+
+  return `
+  <div class="settings-panel">
+    <div class="settings-header">
+      <div>
+        <div style="font-size:17px;font-weight:800">Settings</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Preferences saved to this device only</div>
+      </div>
+      <button onclick="closeSettings()" class="btn-icon" style="font-size:20px;line-height:1">×</button>
+    </div>
+
+    <!-- APPEARANCE -->
+    <div class="settings-section">
+      <div class="settings-section-title">🎨 Appearance</div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Theme</div><div class="setting-desc">Light or dark interface</div></div>
+        ${sel("theme",[{name:"Dark",val:"dark"},{name:"Light",val:"light"}])}
+      </div>
+
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start">
+        <div><div class="setting-label">Accent colour</div><div class="setting-desc">Highlights, active states, buttons</div></div>
+        ${swatches("accent", ACCENT_OPTIONS)}
+      </div>
+
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start">
+        <div><div class="setting-label">Background tone</div><div class="setting-desc">Only applies in dark mode</div></div>
+        ${swatches("bgColor", BG_OPTIONS)}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Font size</div><div class="setting-desc">Base text size throughout the app</div></div>
+        ${sel("fontSize",[{name:"Small",val:"small"},{name:"Default",val:"default"},{name:"Large",val:"large"}])}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Font style</div><div class="setting-desc">Changes the app-wide typeface</div></div>
+        ${sel("fontChoice", FONT_OPTIONS)}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Compact mode</div><div class="setting-desc">Tighter spacing — useful on smaller screens</div></div>
+        ${tog("compactMode")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Animations</div><div class="setting-desc">Fade and slide transitions</div></div>
+        ${tog("animationsEnabled")}
+      </div>
+    </div>
+
+    <!-- JUDGING DISPLAY -->
+    <div class="settings-section">
+      <div class="settings-section-title">📋 Judging Display</div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Score band labels</div><div class="setting-desc">Show "Brilliant / Good / Weak" label next to each score</div></div>
+        ${tog("showScoreBand")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Score slider</div><div class="setting-desc">Show the drag slider for speaker scores</div></div>
+        ${tog("scoreSliderVisible")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">POI tracker</div><div class="setting-desc">Show POI buttons on each speaker card</div></div>
+        ${tog("poiCounterVisible")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Argument tags</div><div class="setting-desc">Show topic-tag chips on argument cards (Economy, Rights…)</div></div>
+        ${tog("argTagsVisible")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Rank badge in team tabs</div><div class="setting-desc">Show auto-rank and score total in the team selector</div></div>
+        ${tog("rankingBadgeInTab")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Bench analysis</div><div class="setting-desc">Show gov/opp and opening/closing bench comparison in Clash tab</div></div>
+        ${tog("showBenchAnalysis")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">OA checklist</div><div class="setting-desc">Show the oral adjudication checklist in OA Prep tab</div></div>
+        ${tog("showOAChecklist")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Motion bar</div><div class="setting-desc">Show the motion input field below the top bar</div></div>
+        ${tog("showMotionBar")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Default tab</div><div class="setting-desc">Which tab opens first when you start a session</div></div>
+        ${sel("defaultTab",[{name:"Team Notes",val:"teams"},{name:"Clash Analysis",val:"clash"},{name:"OA Prep",val:"oa"}])}
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="settings-section">
+      <div class="settings-section-title">⏱ Timer</div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Timer position</div><div class="setting-desc">Corner where the floating timer appears</div></div>
+        ${sel("timerPosition",[{name:"Bottom right",val:"bottom-right"},{name:"Bottom left",val:"bottom-left"}])}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Auto-start prep timer</div><div class="setting-desc">Automatically start the countdown when a new session begins</div></div>
+        ${tog("timerAutoStart")}
+      </div>
+    </div>
+
+    <!-- WORKFLOW -->
+    <div class="settings-section">
+      <div class="settings-section-title">⚙️ Workflow</div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Confirm before delete</div><div class="setting-desc">Show a confirmation dialog when deleting saved sessions</div></div>
+        ${tog("confirmOnDelete")}
+      </div>
+
+      <div class="setting-row">
+        <div><div class="setting-label">Auto-draft interval</div><div class="setting-desc">How often your in-progress session is auto-saved locally</div></div>
+        ${sel("draftInterval",[{name:"Every 10s",val:10},{name:"Every 15s",val:15},{name:"Every 30s",val:30},{name:"Every 60s",val:60}])}
+      </div>
+    </div>
+
+    <!-- RESET -->
+    <div class="settings-section">
+      <div class="settings-section-title">🔄 Reset</div>
+      <div class="setting-desc" style="margin-bottom:14px">Reset all preferences back to their defaults. Your sessions and notes are not affected.</div>
+      <button class="btn btn-danger" onclick="resetPrefs()" style="width:100%;justify-content:center">Reset all settings to default</button>
+    </div>
+  </div>`;
+}
+
+function resetPrefs() {
+  if (!confirm("Reset all settings to defaults?")) return;
+  localStorage.removeItem(PREFS_KEY);
+  loadPrefs();
+  applyPrefs();
+  closeSettings();
+  openSettings();
+  showToast("Settings reset to defaults", "info");
+}
+
 const BP_TEAMS = [
   { id:"OG", label:"Opening Government",  abbr:"OG", bench:"gov", half:"opening" },
   { id:"OO", label:"Opening Opposition",  abbr:"OO", bench:"opp", half:"opening" },
@@ -441,38 +798,43 @@ function render(){
 function renderHome(){
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;position:relative">
+
+    <button onclick="openSettings()" title="Settings" style="position:absolute;top:18px;right:18px;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text2);font-size:18px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s">⚙️</button>
+
     <div class="fade-in" style="text-align:center;max-width:560px;width:100%;display:flex;flex-direction:column;align-items:center">
       <div style="font-size:52px;margin-bottom:14px">⚖️</div>
-      <h1 style="font-size:42px;font-weight:800;color:#fff;letter-spacing:-1.5px;margin-bottom:10px">Adjudicator</h1>
-      <p style="font-size:15px;color:rgba(255,255,255,0.4);margin-bottom:40px;line-height:1.7">Professional note-taking &amp; judging assistant<br>for BP and AP debate competitions</p>
+      <h1 style="font-size:42px;font-weight:800;color:var(--text);letter-spacing:-1.5px;margin-bottom:10px">Adjudicator</h1>
+      <p style="font-size:15px;color:var(--text2);margin-bottom:40px;line-height:1.7">Professional note-taking &amp; judging assistant<br>for BP and AP debate competitions</p>
 
       <div id="draft-banner" style="width:100%;margin-bottom:${hasDraft()?"16px":"0"}">${renderDraftBanner()}</div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;width:100%">
         <button class="mode-card" id="btn-bp">
           <div style="font-size:30px;margin-bottom:10px">🏛️</div>
-          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">British Parliamentary</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px">4 teams · 8 speeches · WUDC format</div>
-          <div style="font-size:11px;color:#818cf8;font-weight:700">OG · OO · CG · CO</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">British Parliamentary</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px">4 teams · 8 speeches · WUDC format</div>
+          <div style="font-size:11px;color:var(--accent);font-weight:700">OG · OO · CG · CO</div>
         </button>
         <button class="mode-card" id="btn-ap">
           <div style="font-size:30px;margin-bottom:10px">🏟️</div>
-          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Asian Parliamentary</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px">2 teams · 6 speeches · AP format</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">Asian Parliamentary</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px">2 teams · 6 speeches · AP format</div>
           <div style="font-size:11px;color:#fb923c;font-weight:700">Government · Opposition</div>
         </button>
       </div>
 
-      <button id="btn-saved" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);font-size:14px;font-weight:500;transition:all .15s">
+      <button id="btn-saved" style="width:100%;padding:14px;border-radius:12px;background:var(--bg3);border:1.5px solid var(--border);color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s">
         📁 Saved Sessions (${S.savedNotes.length})
       </button>
-      <div style="margin-top:32px;display:flex;gap:24px;justify-content:center;font-size:12px;color:rgba(255,255,255,0.2)">
+      <div style="margin-top:24px;display:flex;gap:20px;justify-content:center;font-size:11px;color:var(--text3)">
         <span>⏱ Smart timer</span><span>📊 Score tracking</span><span>🗒 OA prep</span><span>☁️ Cloud save</span>
       </div>
     </div>
 
-    <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,0.18);letter-spacing:0.3px;white-space:nowrap;pointer-events:none;user-select:none">
-      A Project by Christian Tendean
+    <div style="position:absolute;bottom:22px;left:50%;transform:translateX(-50%);white-space:nowrap;pointer-events:none;user-select:none;display:flex;align-items:center;gap:10px">
+      <span style="display:inline-block;width:32px;height:1px;background:var(--border2)"></span>
+      <span style="font-size:12px;color:var(--text2);letter-spacing:0.4px;font-weight:500">A Project by Christian Tendean</span>
+      <span style="display:inline-block;width:32px;height:1px;background:var(--border2)"></span>
     </div>
   </div>`;
 }
@@ -706,7 +1068,7 @@ function exportSession(id){
   }
 }
 async function deleteSession(id){
-  if(!confirm("Delete this session permanently?")) return;
+  if(PREFS.confirmOnDelete && !confirm("Delete this session permanently?")) return;
   S.savedNotes=S.savedNotes.filter(n=>n.id!==id);
   persistSaved();
   render();
@@ -740,16 +1102,15 @@ function renderTopBar(rankings){
   return `
   <div id="topbar">
     <div id="topbar-inner">
-      <button onclick="S.view='home';stopTimerInterval();render()" style="background:none;border:none;color:rgba(255,255,255,0.35);font-size:20px;padding:0;flex-shrink:0">←</button>
-      <span class="badge" style="background:rgba(129,140,248,0.2);color:#818cf8;flex-shrink:0">${S.mode}</span>
+      <button onclick="S.view='home';stopTimerInterval();render()" style="background:none;border:none;color:var(--text3);font-size:20px;padding:0;flex-shrink:0;line-height:1">←</button>
+      <span class="badge" style="background:var(--accent2);color:var(--accent);flex-shrink:0;border:1px solid var(--accent3)">${S.mode}</span>
       <input id="title-input" value="${esc(S.sessionTitle)}" placeholder="Session title…" oninput="S.sessionTitle=this.value">
       <input id="round-input" value="${esc(S.round)}" placeholder="Round #" oninput="S.round=this.value">
-      <button class="btn" onclick="S.view='saved';render()" style="flex-shrink:0">📁 Saved</button>
-      <button id="save-btn" class="btn ${S.saveMsg?"btn-success":"btn-primary"}" onclick="saveSession()" style="flex-shrink:0;min-width:72px">${S.saveMsg||"💾 Save"}</button>
+      <button class="btn" onclick="S.view='saved';render()" style="flex-shrink:0">📁</button>
+      <button class="btn-icon" onclick="openSettings()" title="Settings" style="flex-shrink:0">⚙️</button>
+      <button id="save-btn" class="btn ${S.saveMsg?"btn-success":"btn-primary"}" onclick="saveSession()" style="flex-shrink:0;min-width:76px">${S.saveMsg||"💾 Save"}</button>
     </div>
-    <div id="motion-bar">
-      <input id="motion-input" value="${esc(S.motion)}" placeholder="Motion: This House would / believes / supports…" oninput="S.motion=this.value">
-    </div>
+    ${PREFS.showMotionBar ? `<div id="motion-bar"><input id="motion-input" value="${esc(S.motion)}" placeholder="Motion: This House would / believes / supports…" oninput="S.motion=this.value"></div>` : ""}
     <div class="tab-bar">
       <button class="main-tab ${S.judgeTab==="teams"?"active":""}" onclick="setJudgeTab('teams')">📝 Team Notes</button>
       <button class="main-tab ${S.judgeTab==="clash"?"active":""}" onclick="setJudgeTab('clash')">⚔️ Clash Analysis</button>
@@ -1286,14 +1647,6 @@ function restoreDraft() {
   }
 }
 
-// Auto-save draft every 15 seconds while judging
-setInterval(saveDraft, 15000);
-
-// Save draft on page hide/unload (covers refresh, tab close, navigate away)
-window.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") saveDraft(); });
-window.addEventListener("pagehide", saveDraft);
-window.addEventListener("beforeunload", saveDraft);
-
 // ── Restore banner shown on home screen ──────────────────────────────────────
 function renderDraftBanner() {
   if (!hasDraft()) return "";
@@ -1316,6 +1669,7 @@ function renderDraftBanner() {
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
+loadPrefs();   // must be before applyPrefs and first render
 try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); } catch(e) { S.savedNotes = []; }
 
 // Auto-restore if the user refreshed mid-session (draft < 5 minutes old)
@@ -1326,7 +1680,6 @@ try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); }
     const d = JSON.parse(raw);
     if (!d || !d.ts) return;
     const ageMs = Date.now() - d.ts;
-    // If they were actively judging within the last 5 minutes, bring them straight back
     if (ageMs < 5 * 60 * 1000 && d.view === "judge" && d.mode) {
       S.mode          = d.mode || "BP";
       S.sessionTitle  = d.sessionTitle || "";
@@ -1340,16 +1693,27 @@ try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); }
       S.judgeTab      = d.judgeTab || "teams";
       S.showScale     = {};
       S.view          = "judge";
-      // Keep draft alive until they explicitly save — clear only after a manual save
     }
-  } catch(e) { /* corrupt draft — ignore */ }
+  } catch(e) {}
 })();
 
+applyPrefs();  // apply theme/accent/font before first render
 render();
-// Show a "restored" toast if we auto-jumped back into a session
+
 if (S.view === "judge") {
   setTimeout(() => showToast("📋 Session restored from last visit", "success"), 400);
 }
+
+// Auto-draft interval (respects PREFS.draftInterval)
+let _draftInterval = setInterval(saveDraft, (PREFS.draftInterval || 15) * 1000);
+// Refresh interval when pref changes
+const _origSetPref = setPref;
+
+// Save draft on page hide/unload
+window.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") saveDraft(); });
+window.addEventListener("pagehide", saveDraft);
+window.addEventListener("beforeunload", saveDraft);
+
 loadSaved(); // sync cloud in background
 </script>
 </body>
