@@ -440,13 +440,15 @@ function render(){
 // ══════════════════════════════════════════════════════════════════════════════
 function renderHome(){
   return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px">
-    <div class="fade-in" style="text-align:center;max-width:560px;width:100%">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;position:relative">
+    <div class="fade-in" style="text-align:center;max-width:560px;width:100%;display:flex;flex-direction:column;align-items:center">
       <div style="font-size:52px;margin-bottom:14px">⚖️</div>
       <h1 style="font-size:42px;font-weight:800;color:#fff;letter-spacing:-1.5px;margin-bottom:10px">Adjudicator</h1>
       <p style="font-size:15px;color:rgba(255,255,255,0.4);margin-bottom:40px;line-height:1.7">Professional note-taking &amp; judging assistant<br>for BP and AP debate competitions</p>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div id="draft-banner" style="width:100%;margin-bottom:${hasDraft()?"16px":"0"}">${renderDraftBanner()}</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;width:100%">
         <button class="mode-card" id="btn-bp">
           <div style="font-size:30px;margin-bottom:10px">🏛️</div>
           <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">British Parliamentary</div>
@@ -467,6 +469,10 @@ function renderHome(){
       <div style="margin-top:32px;display:flex;gap:24px;justify-content:center;font-size:12px;color:rgba(255,255,255,0.2)">
         <span>⏱ Smart timer</span><span>📊 Score tracking</span><span>🗒 OA prep</span><span>☁️ Cloud save</span>
       </div>
+    </div>
+
+    <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,0.18);letter-spacing:0.3px;white-space:nowrap;pointer-events:none;user-select:none">
+      A Project by Christian Tendean
     </div>
   </div>`;
 }
@@ -1205,22 +1211,146 @@ function saveSession(){ showSaveModal(); }
 // BIND JUDGE VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 function bindJudge(){
+  const sync = () => saveDraft();
   const titleEl=document.getElementById("title-input");
-  if(titleEl) titleEl.addEventListener("input",()=>S.sessionTitle=titleEl.value);
+  if(titleEl){ titleEl.addEventListener("input",()=>{ S.sessionTitle=titleEl.value; sync(); }); }
   const motionEl=document.getElementById("motion-input");
-  if(motionEl) motionEl.addEventListener("input",()=>S.motion=motionEl.value);
+  if(motionEl){ motionEl.addEventListener("input",()=>{ S.motion=motionEl.value; sync(); }); }
   const roundEl=document.getElementById("round-input");
-  if(roundEl) roundEl.addEventListener("input",()=>S.round=roundEl.value);
+  if(roundEl){ roundEl.addEventListener("input",()=>{ S.round=roundEl.value; sync(); }); }
+  // Also save draft when any textarea/input inside content changes
+  const content=document.getElementById("content");
+  if(content){ content.addEventListener("input", sync, { passive:true }); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DRAFT — auto-save active session to localStorage every 15s + on any change
+// ══════════════════════════════════════════════════════════════════════════════
+const DRAFT_KEY = "adj_draft_session";
+
+function saveDraft() {
+  if (S.view !== "judge") return;
+  // Flush any live DOM inputs first
+  const t=document.getElementById("title-input");  if(t) S.sessionTitle=t.value;
+  const m=document.getElementById("motion-input"); if(m) S.motion=m.value;
+  const r=document.getElementById("round-input");  if(r) S.round=r.value;
+  const o=document.getElementById("oa-textarea");  if(o) S.oaNotes=o.value;
+  try {
+    const draft = {
+      view: "judge",
+      mode: S.mode, sessionTitle: S.sessionTitle, motion: S.motion,
+      round: S.round, teams: S.teams, oaNotes: S.oaNotes,
+      clashes: S.clashes, editingId: S.editingId,
+      activeTeamTab: S.activeTeamTab, judgeTab: S.judgeTab,
+      ts: Date.now(),
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch(e) { /* storage full — ignore */ }
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+function hasDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    // Only offer restore if draft is < 24 hours old
+    return d && d.ts && (Date.now() - d.ts) < 86400000;
+  } catch(e) { return false; }
+}
+
+function restoreDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    if (!d) return;
+    S.mode = d.mode || "BP";
+    S.sessionTitle = d.sessionTitle || "";
+    S.motion = d.motion || "";
+    S.round = d.round || "";
+    S.teams = d.teams || (d.mode === "AP" ? defaultAPSession() : defaultBPSession());
+    S.oaNotes = d.oaNotes || "";
+    S.clashes = d.clashes || {};
+    S.editingId = d.editingId || null;
+    S.activeTeamTab = d.activeTeamTab || (d.mode === "AP" ? "GOV" : "OG");
+    S.judgeTab = d.judgeTab || "teams";
+    S.showScale = {};
+    S.view = "judge";
+    clearDraft();
+    render();
+    showToast("✓ Session restored", "success");
+  } catch(e) {
+    console.warn("Draft restore failed:", e);
+  }
+}
+
+// Auto-save draft every 15 seconds while judging
+setInterval(saveDraft, 15000);
+
+// Save draft on page hide/unload (covers refresh, tab close, navigate away)
+window.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") saveDraft(); });
+window.addEventListener("pagehide", saveDraft);
+window.addEventListener("beforeunload", saveDraft);
+
+// ── Restore banner shown on home screen ──────────────────────────────────────
+function renderDraftBanner() {
+  if (!hasDraft()) return "";
+  let d;
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch(e) { return ""; }
+  const ago = Math.round((Date.now() - d.ts) / 60000);
+  const agoStr = ago < 1 ? "just now" : ago < 60 ? ago + "m ago" : Math.round(ago/60) + "h ago";
+  return `
+  <div style="margin-top:20px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;max-width:560px;width:100%">
+    <span style="font-size:22px">📋</span>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:#fbbf24">Unsaved session found</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">${esc(d.sessionTitle||d.mode+" Session")} · ${d.mode} · ${agoStr}</div>
+    </div>
+    <button onclick="restoreDraft()" style="padding:7px 16px;border-radius:8px;background:rgba(251,191,36,0.2);color:#fbbf24;border:1px solid rgba(251,191,36,0.35);font-size:12px;font-weight:700;cursor:pointer">Restore</button>
+    <button onclick="clearDraft();document.getElementById('draft-banner')?.remove()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
-// 1. Show home instantly from localStorage
 try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); } catch(e) { S.savedNotes = []; }
+
+// Auto-restore if the user refreshed mid-session (draft < 5 minutes old)
+(function autoRestore() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d || !d.ts) return;
+    const ageMs = Date.now() - d.ts;
+    // If they were actively judging within the last 5 minutes, bring them straight back
+    if (ageMs < 5 * 60 * 1000 && d.view === "judge" && d.mode) {
+      S.mode          = d.mode || "BP";
+      S.sessionTitle  = d.sessionTitle || "";
+      S.motion        = d.motion || "";
+      S.round         = d.round || "";
+      S.teams         = d.teams || (d.mode === "AP" ? defaultAPSession() : defaultBPSession());
+      S.oaNotes       = d.oaNotes || "";
+      S.clashes       = d.clashes || {};
+      S.editingId     = d.editingId || null;
+      S.activeTeamTab = d.activeTeamTab || (d.mode === "AP" ? "GOV" : "OG");
+      S.judgeTab      = d.judgeTab || "teams";
+      S.showScale     = {};
+      S.view          = "judge";
+      // Keep draft alive until they explicitly save — clear only after a manual save
+    }
+  } catch(e) { /* corrupt draft — ignore */ }
+})();
+
 render();
-// 2. Sync from Supabase in background (re-renders when done)
-loadSaved();
+// Show a "restored" toast if we auto-jumped back into a session
+if (S.view === "judge") {
+  setTimeout(() => showToast("📋 Session restored from last visit", "success"), 400);
+}
+loadSaved(); // sync cloud in background
 </script>
 </body>
 </html>
