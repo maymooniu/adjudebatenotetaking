@@ -182,6 +182,68 @@ button{cursor:pointer}
 /* ── section headers in judge view ── */
 .section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .section-header-line{flex:1;height:1px;background:var(--border)}
+
+/* ── flow view ── */
+.flow-grid{display:grid;gap:0;overflow-x:auto;min-width:0}
+.flow-col{min-width:180px;border-right:1px solid var(--border)}
+.flow-col:last-child{border-right:none}
+.flow-col-header{padding:10px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--topbar-bg);z-index:2}
+.flow-note{padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;line-height:1.5;min-height:60px;color:var(--text);background:transparent;border-left:none;border-right:none;border-top:none;resize:none;width:100%;outline:none;font-family:var(--font)}
+.flow-note:focus{background:var(--bg3)}
+.flow-arg-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;margin:2px;font-weight:600;cursor:pointer;border:1px solid transparent}
+.flow-link-btn{font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s}
+.flow-link-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── quick-note hotbar ── */
+#quick-hotbar{position:fixed;bottom:0;left:0;right:0;z-index:8888;background:var(--topbar-bg);border-top:1.5px solid var(--border);padding:10px 20px;display:flex;gap:10px;align-items:center;backdrop-filter:blur(20px)}
+#quick-input{flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:8px 14px;outline:none;font-family:var(--font);transition:border-color .15s}
+#quick-input:focus{border-color:var(--accent)}
+#quick-team-sel{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:7px 10px;outline:none;cursor:pointer;flex-shrink:0}
+.quick-note-item{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px;font-size:12px;animation:popIn .2s ease both}
+.quick-note-team{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;flex-shrink:0;margin-top:1px}
+
+/* ── clash winner voting ── */
+.clash-winner-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.clash-winner-btn{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid;cursor:pointer;transition:all .15s;flex:1;text-align:center}
+.clash-conf-row{display:flex;gap:4px;margin-top:6px}
+.clash-conf-dot{width:12px;height:12px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0}
+
+/* ── argument link ── */
+.arg-link-row{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.arg-link-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(129,140,248,0.12);color:var(--accent);border:1px solid var(--accent3);font-weight:600}
+
+/* ── score bar chart ── */
+.score-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.score-bar-track{flex:1;height:10px;border-radius:5px;background:var(--bg4);overflow:hidden}
+.score-bar-fill{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.22,1,.36,1)}
+.score-bar-label{font-size:11px;font-weight:700;min-width:32px;text-align:right}
+.score-bar-total{font-size:18px;font-weight:800;min-width:44px;font-family:var(--font-mono)}
+
+/* ── deliberation mode ── */
+#delib-overlay{position:fixed;inset:0;z-index:77777;background:var(--bg);overflow-y:auto}
+.delib-topbar{position:sticky;top:0;z-index:2;background:var(--topbar-bg);border-bottom:1.5px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px;backdrop-filter:blur(20px)}
+.delib-timer{font-family:var(--font-mono);font-size:28px;font-weight:800;letter-spacing:2px}
+.delib-team-col{background:var(--card-bg);border:1.5px solid var(--border);border-radius:14px;padding:16px;break-inside:avoid}
+.delib-arg-row{padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:12px;line-height:1.5;border-left:3px solid}
+
+/* ── undo toast ── */
+#undo-toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:9998;background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:var(--shadow);animation:popIn .2s ease both}
+
+/* ── print styles ── */
+@media print {
+  #topbar,#timer-widget,#timer-mini,#quick-hotbar,#delib-overlay,
+  .btn,button,.settings-overlay,.main-tab,.team-tabs-row{display:none!important}
+  body{background:#fff!important;color:#000!important;font-size:11pt}
+  #content{padding:0!important;max-width:100%!important}
+  .speaker-card,.arg-card,.note-textarea,.clash-textarea{
+    border:1px solid #ccc!important;background:#f9f9f9!important;color:#000!important;break-inside:avoid
+  }
+  .score-bar-track{background:#eee!important}
+  #score-overview{border:1px solid #ccc!important;background:#fff!important}
+  .team-panel,.delib-team-col{border:1px solid #ccc!important;break-inside:avoid;margin-bottom:16pt}
+  h2{border-bottom:2px solid #000;padding-bottom:4pt}
+  @page{margin:1.5cm}
+}
 </style>
 </head>
 <body>
@@ -588,25 +650,29 @@ const RANK_EMOJI = ["🥇","🥈","🥉","4️⃣"];
 // STATE
 // ══════════════════════════════════════════════════════════════════════════════
 let S = {
-  view: "home",       // home | judge | saved
+  view: "home",       // home | judge | saved | deliberation
   mode: "BP",
   sessionTitle: "",
   motion: "",
   round: "",
   teams: {},
   oaNotes: "",
-  clashes: {},
+  clashes: {},         // key → {notes, winner, confidence}
   savedNotes: [],
   activeTeamTab: "OG",
-  judgeTab: "teams",  // teams | clash | oa
+  judgeTab: "teams",  // teams | flow | clash | oa
   editingId: null,
   saving: false,
   saveMsg: "",
-  showScale: {},      // speakerId -> bool
+  showScale: {},
   timerPhase: "prep",
   timerRunning: false,
   timerElapsed: 0,
   timerMinimized: false,
+  quickNotes: [],      // [{id,text,teamId,ts}]
+  undoStack: [],       // [{type,data}] — for undo on deletes
+  deliberationElapsed: 0,
+  deliberationRunning: false,
 };
 let timerInterval = null;
 
@@ -624,7 +690,7 @@ function defaultBPSession(){
       id:t.id, label:t.label, abbr:t.abbr, bench:t.bench, half:t.half,
       speakers:BP_ROLES[t.id].map((role,i)=>({
         id:`${t.id}_s${i}`, role, name:"", score:75, notes:"",
-        pois_taken:[], pois_offered:[],
+        pois_taken:[], pois_offered:[], flowNotes:"",
       })),
       teamNotes:"", arguments:[], contradictions:[], extension:"", rank:null,
     };
@@ -638,7 +704,7 @@ function defaultAPSession(){
       id:t.id, label:t.label, abbr:t.abbr, bench:t.bench, half:t.half,
       speakers:AP_ROLES[t.id].map((role,i)=>({
         id:`${t.id}_s${i}`, role, name:"", score:75, notes:"",
-        pois_taken:[], pois_offered:[],
+        pois_taken:[], pois_offered:[], flowNotes:"",
       })),
       teamNotes:"", arguments:[], contradictions:[], rank:null,
     };
@@ -1092,9 +1158,12 @@ function renderJudge(){
   ${renderTopBar(rankings)}
   <div id="content">
     ${S.judgeTab==="teams"?renderTeamsTab(ids,rankings):""}
+    ${S.judgeTab==="flow"?renderFlowTab(ids):""}
     ${S.judgeTab==="clash"?renderClashTab(ids,rankings):""}
     ${S.judgeTab==="oa"?renderOATab(rankings):""}
-  </div>`;
+  </div>
+  ${renderQuickHotbar()}
+  `;
 }
 
 // ── TOP BAR ──
@@ -1113,8 +1182,10 @@ function renderTopBar(rankings){
     ${PREFS.showMotionBar ? `<div id="motion-bar"><input id="motion-input" value="${esc(S.motion)}" placeholder="Motion: This House would / believes / supports…" oninput="S.motion=this.value"></div>` : ""}
     <div class="tab-bar">
       <button class="main-tab ${S.judgeTab==="teams"?"active":""}" onclick="setJudgeTab('teams')">📝 Team Notes</button>
-      <button class="main-tab ${S.judgeTab==="clash"?"active":""}" onclick="setJudgeTab('clash')">⚔️ Clash Analysis</button>
+      <button class="main-tab ${S.judgeTab==="flow"?"active":""}" onclick="setJudgeTab('flow')">📊 Flow</button>
+      <button class="main-tab ${S.judgeTab==="clash"?"active":""}" onclick="setJudgeTab('clash')">⚔️ Clash</button>
       <button class="main-tab ${S.judgeTab==="oa"?"active":""}" onclick="setJudgeTab('oa')">🎤 OA Prep</button>
+      <button class="main-tab" onclick="openDeliberation()" style="margin-left:auto;color:#f472b6">🔴 Deliberate</button>
     </div>
   </div>`;
 }
@@ -1242,41 +1313,65 @@ function renderSpeakerCard(sp,idx,teamId,col){
 
 function renderArgCard(arg,teamId){
   const statusBg={standing:"rgba(255,255,255,0.08)",rebutted:"rgba(239,68,68,0.15)",conceded:"rgba(34,197,94,0.15)",dropped:"rgba(100,100,100,0.15)"};
+  // Collect all args from OTHER teams for linking
+  const ids=teamIds();
+  const otherArgs=[];
+  ids.filter(id=>id!==teamId).forEach(id=>{
+    (S.teams[id]?.arguments||[]).forEach(a=>{ if(a.text) otherArgs.push({teamId:id,id:a.id,text:a.text.slice(0,40),col:TEAM_COLORS[id]}); });
+  });
+  const linkedArg = arg.rebuttsArgId ? otherArgs.find(a=>a.id===arg.rebuttsArgId) : null;
   return `
   <div class="arg-card" id="arg-${arg.id}">
     <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
       <select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','strength',this.value)">
         ${["strong","medium","weak"].map(v=>`<option value="${v}" ${arg.strength===v?"selected":""}>${{strong:"💪 Strong",medium:"⚡ Medium",weak:"⚠ Weak"}[v]}</option>`).join("")}
       </select>
-      <select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','tag',this.value)">
-        ${ARGUMENT_TAGS.map(t=>`<option value="${t}" ${arg.tag===t?"selected":""}>${t}</option>`).join("")}
-      </select>
+      ${PREFS.argTagsVisible?`<select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','tag',this.value)">${ARGUMENT_TAGS.map(t=>`<option value="${t}" ${arg.tag===t?"selected":""}>${t}</option>`).join("")}</select>`:""}
       <select class="arg-select" style="background:${statusBg[arg.status]||"rgba(255,255,255,0.08)"}" onchange="updateArgField('${teamId}','${arg.id}','status',this.value)">
         ${["standing","rebutted","conceded","dropped"].map(v=>`<option value="${v}" ${arg.status===v?"selected":""}>${{standing:"Standing",rebutted:"Rebutted",conceded:"Conceded ✓",dropped:"Dropped"}[v]}</option>`).join("")}
       </select>
-      <button onclick="deleteArgument('${teamId}','${arg.id}')" style="margin-left:auto;background:none;border:none;color:rgba(255,100,100,0.6);font-size:14px;padding:0">✕</button>
+      <button onclick="undoableDeleteArgument('${teamId}','${arg.id}')" style="margin-left:auto;background:none;border:none;color:rgba(255,100,100,0.6);font-size:14px;padding:0" title="Delete (undoable)">✕</button>
     </div>
     <textarea class="arg-textarea" oninput="updateArgField('${teamId}','${arg.id}','text',this.value)" placeholder="Argument summary…">${esc(arg.text||"")}</textarea>
+    <div class="arg-link-row">
+      <span style="font-size:10px;color:var(--text3)">↩ Rebuts:</span>
+      ${linkedArg?`<span class="arg-link-chip" style="background:${linkedArg.col}18;color:${linkedArg.col};border-color:${linkedArg.col}30">${linkedArg.teamId}: ${esc(linkedArg.text)}… <button onclick="updateArgField('${teamId}','${arg.id}','rebuttsArgId',null)" style="background:none;border:none;color:inherit;font-size:11px;cursor:pointer;padding:0;margin-left:2px">×</button></span>`
+      :`<select class="arg-select" style="font-size:10px" onchange="updateArgField('${teamId}','${arg.id}','rebuttsArgId',this.value)"><option value="">Link to opposing arg…</option>${otherArgs.map(a=>`<option value="${a.id}">[${a.teamId}] ${esc(a.text)}…</option>`).join("")}</select>`}
+    </div>
   </div>`;
 }
 
 function renderScoreOverview(ids,rankings){
+  const maxTotal = Math.max(...ids.map(tid => S.teams[tid]?.speakers.reduce((s,sp)=>s+Number(sp.score||0),0)||0));
+  const rankLabels = ["","🥇","🥈","🥉","4️⃣"];
   return `
   <div id="score-overview">
-    <div class="label-xs" style="margin-bottom:12px">Score Overview</div>
-    <div style="display:grid;grid-template-columns:repeat(${ids.length},1fr);gap:12px">
-      ${ids.map(tid=>{
-        const t=S.teams[tid], col=TEAM_COLORS[tid];
-        const total=t.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
-        const ri=rankings.find(r=>r.id===tid);
-        return `<div style="text-align:center">
-          <div style="font-size:11px;color:${col};font-weight:700;margin-bottom:4px">${tid}</div>
-          ${t.speakers.map(sp=>`<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:1px">${sp.role.split(" ").slice(-1)[0]}: <span style="color:#fff;font-weight:600">${sp.score}</span></div>`).join("")}
-          <div style="margin-top:6px;font-size:16px;font-weight:800;color:${col}">Σ ${total}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.3)">Rank #${ri?ri.autoRank:"?"}</div>
-        </div>`;
-      }).join("")}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span class="label-xs" style="margin:0">Score Overview</span>
+      <span style="font-size:10px;color:var(--text3)">max possible: ${ids.length===4?200:225}</span>
     </div>
+    ${ids.map(tid=>{
+      const t=S.teams[tid], col=TEAM_COLORS[tid];
+      const total=t.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
+      const ri=rankings.find(r=>r.id===tid);
+      const pct=maxTotal>0?Math.round((total/maxTotal)*100):0;
+      return `
+      <div class="score-bar-row">
+        <div style="min-width:36px;font-size:11px;font-weight:800;color:${col}">${tid}</div>
+        <div class="score-bar-track">
+          <div class="score-bar-fill" style="width:${pct}%;background:${col}"></div>
+        </div>
+        <div class="score-bar-total" style="color:${col}">${total}</div>
+        <div style="font-size:14px;min-width:24px">${rankLabels[ri?.autoRank]||""}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;padding-left:44px">
+        ${t.speakers.map(sp=>{
+          const sc=Number(sp.score||75);
+          const scCol=sc>=83?"#22c55e":sc>=73?"#f59e0b":sc>=64?"#f97316":"#ef4444";
+          return `<div style="font-size:10px;color:var(--text3)">${sp.role.split(" ").pop()}: <span style="font-weight:700;color:${scCol}">${sc}</span></div>`;
+        }).join("")}
+      </div>`;
+    }).join("")}
   </div>`;
 }
 
@@ -1284,24 +1379,66 @@ function renderScoreOverview(ids,rankings){
 function renderClashTab(ids,rankings){
   const pairs=[];
   for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++) pairs.push([ids[i],ids[j]]);
+
+  // Tally clash wins for summary
+  const wins={};
+  ids.forEach(id=>wins[id]=0);
+  pairs.forEach(([a,b])=>{
+    const key=[a,b].sort().join("_vs_");
+    const cl=S.clashes[key]||{};
+    if(cl.winner===a) wins[a]++;
+    else if(cl.winner===b) wins[b]++;
+  });
+
   return `
   <div class="slide-in">
-    <div class="label-xs" style="margin-bottom:10px">Pairwise Clash Notes</div>
+    <!-- Clash summary bar -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      ${ids.map(tid=>{
+        const col=TEAM_COLORS[tid];
+        const w=wins[tid]||0;
+        const total=pairs.length;
+        return `<div style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;background:${col}10;border:1.5px solid ${col}25;text-align:center">
+          <div style="font-size:11px;color:${col};font-weight:700">${tid}</div>
+          <div style="font-size:22px;font-weight:800;color:${col}">${w}<span style="font-size:13px;color:var(--text3)">/${total}</span></div>
+          <div style="font-size:10px;color:var(--text3)">clashes won</div>
+        </div>`;
+      }).join("")}
+    </div>
+
+    <div class="label-xs" style="margin-bottom:10px">Pairwise Clash Analysis</div>
     ${pairs.map(([a,b])=>{
       const key=[a,b].sort().join("_vs_");
+      const cl=S.clashes[key]||{notes:"",winner:null,confidence:2};
+      const colA=TEAM_COLORS[a], colB=TEAM_COLORS[b];
+      const confDots=[1,2,3];
       return `
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">
-          <span style="font-weight:700;color:${TEAM_COLORS[a]}">${a}</span>
-          <span style="color:rgba(255,255,255,0.25)"> vs </span>
-          <span style="font-weight:700;color:${TEAM_COLORS[b]}">${b}</span>
+      <div style="margin-bottom:16px;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;padding:14px">
+        <div class="clash-pair-label">
+          <span style="color:${colA};font-weight:800">${a}</span>
+          <span style="color:var(--text3);font-size:10px">vs</span>
+          <span style="color:${colB};font-weight:800">${b}</span>
+          ${cl.winner?`<span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:10px;background:${TEAM_COLORS[cl.winner]}20;color:${TEAM_COLORS[cl.winner]};font-weight:700">→ ${cl.winner} wins</span>`:""}
         </div>
-        <textarea class="clash-textarea" oninput="updateClash('${key}',this.value)" placeholder="Who won the ${a} vs ${b} clash? Why?">${esc(S.clashes[key]||"")}</textarea>
+        <textarea class="clash-textarea" style="min-height:52px" oninput="updateClash('${key}','notes',this.value)" placeholder="Analysis — who made the stronger case here and why?">${esc(cl.notes||"")}</textarea>
+        <div class="clash-winner-row">
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0">Winner:</span>
+          ${[a,"Even",b].map(opt=>{
+            const isTeam=opt!=="Even";
+            const optCol=isTeam?TEAM_COLORS[opt]:"#888";
+            const selected=cl.winner===opt||(opt==="Even"&&cl.winner==="Even");
+            return `<button class="clash-winner-btn" onclick="updateClash('${key}','winner','${opt}')" style="background:${selected?optCol+"22":"transparent"};color:${selected?optCol:optCol+"88"};border-color:${selected?optCol:optCol+"33"}">${opt}</button>`;
+          }).join("")}
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0;margin-left:8px">Confidence:</span>
+          <div class="clash-conf-row">
+            ${confDots.map(n=>`<div class="clash-conf-dot" onclick="updateClash('${key}','confidence',${n})" style="background:${(cl.confidence||2)>=n?"var(--accent)":"var(--border2)"}"></div>`).join("")}
+          </div>
+        </div>
       </div>`;
     }).join("")}
 
     <div style="margin-top:24px">
-      <div class="label-xs" style="margin-bottom:10px">Contradiction Tracker</div>
+      <div class="label-xs" style="margin-bottom:10px">Contradiction Notes</div>
       ${ids.map(tid=>{
         const t=S.teams[tid], col=TEAM_COLORS[tid];
         const val=(t.contradictions||[]).join("\n");
@@ -1313,7 +1450,7 @@ function renderClashTab(ids,rankings){
       }).join("")}
     </div>
 
-    ${S.mode==="BP"?renderBenchAnalysis(rankings):""}
+    ${S.mode==="BP"&&PREFS.showBenchAnalysis?renderBenchAnalysis(rankings):""}
   </div>`;
 }
 function renderBenchAnalysis(rankings){
@@ -1431,7 +1568,12 @@ function deleteArgument(teamId,argId){
   S.teams[teamId].arguments=S.teams[teamId].arguments.filter(a=>a.id!==argId);
   partialRenderTeams();
 }
-function updateClash(key,value){ S.clashes[key]=value; }
+function updateClash(key,field,value){
+  if(!S.clashes[key]) S.clashes[key]={notes:"",winner:null,confidence:2};
+  S.clashes[key][field]=value;
+  // re-render clash tab if active for winner buttons
+  if(S.judgeTab==="clash"){ const c=document.getElementById("content"); if(c){ const ids=teamIds(); const rankings=computeRankings(S.teams); c.innerHTML=renderClashTab(ids,rankings); } }
+}
 function updateContradictions(teamId,value){ S.teams[teamId].contradictions=value.split("\n"); }
 
 function generateOATemplate(){
@@ -1452,8 +1594,280 @@ function generateOATemplate(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SAVE MODAL — choose local or cloud
+// FLOW VIEW (horizontal speech-by-speech grid)
 // ══════════════════════════════════════════════════════════════════════════════
+function renderFlowTab(ids){
+  const speeches=[];
+  if(S.mode==="BP"){
+    speeches.push({teamId:"OG",spIdx:0,label:"Prime Minister"});
+    speeches.push({teamId:"OO",spIdx:0,label:"Leader of Opp"});
+    speeches.push({teamId:"OG",spIdx:1,label:"Dep. PM"});
+    speeches.push({teamId:"OO",spIdx:1,label:"Dep. LO"});
+    speeches.push({teamId:"CG",spIdx:0,label:"Member Gov"});
+    speeches.push({teamId:"CO",spIdx:0,label:"Member Opp"});
+    speeches.push({teamId:"CG",spIdx:1,label:"Gov Whip"});
+    speeches.push({teamId:"CO",spIdx:1,label:"Opp Whip"});
+  } else {
+    speeches.push({teamId:"GOV",spIdx:0,label:"Prime Minister"});
+    speeches.push({teamId:"OPP",spIdx:0,label:"Leader of Opp"});
+    speeches.push({teamId:"GOV",spIdx:1,label:"Dep. PM"});
+    speeches.push({teamId:"OPP",spIdx:1,label:"Dep. LO"});
+    speeches.push({teamId:"GOV",spIdx:2,label:"Gov Whip"});
+    speeches.push({teamId:"OPP",spIdx:2,label:"Opp Whip"});
+  }
+  const cols=speeches.length;
+  return `
+  <div class="slide-in" style="overflow-x:auto;padding-bottom:8px">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Track each speech left-to-right as the debate unfolds. Notes here sync to Team Notes.</div>
+    <div class="flow-grid" style="grid-template-columns:repeat(${cols},minmax(200px,1fr));min-width:${cols*200}px">
+      ${speeches.map((sp,i)=>{
+        const col=TEAM_COLORS[sp.teamId];
+        const spData=S.teams[sp.teamId]?.speakers[sp.spIdx];
+        const bench=S.teams[sp.teamId]?.bench==="gov"?"Gov":"Opp";
+        return `
+        <div class="flow-col" style="border-top:3px solid ${col}">
+          <div class="flow-col-header" style="border-top:none">
+            <div style="font-size:10px;font-weight:800;color:${col};letter-spacing:.5px">${sp.teamId}</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:1px">${sp.label}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${spData?.name||"Speaker "+(sp.spIdx+1)} · ${spData?.score||75}pts</div>
+          </div>
+          <textarea class="flow-note" rows="8"
+            oninput="updateFlowNote('${sp.teamId}',${sp.spIdx},this.value)"
+            placeholder="Notes on this speech…\n\n• Key arguments\n• POIs\n• Style observations"
+          >${esc(spData?.flowNotes||"")}</textarea>
+          <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Arguments in this speech:</div>
+            ${(S.teams[sp.teamId]?.arguments||[]).map(a=>`
+              <div class="flow-arg-chip" style="background:${TEAM_COLORS[sp.teamId]}15;color:${TEAM_COLORS[sp.teamId]};border-color:${TEAM_COLORS[sp.teamId]}30">
+                <span style="font-size:9px">${a.strength==="strong"?"💪":a.strength==="weak"?"⚠":"⚡"}</span>
+                <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.text.slice(0,30)||"(no text)")}</span>
+                <span style="font-size:9px;opacity:.6">${a.status==="rebutted"?"[R]":a.status==="conceded"?"[C]":""}</span>
+              </div>`).join("")}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+    <!-- Quick note area at bottom of flow -->
+    ${S.quickNotes.length?`
+    <div style="margin-top:16px">
+      <div class="label-xs" style="margin-bottom:8px">Quick-captured notes</div>
+      ${S.quickNotes.map(n=>{
+        const col=TEAM_COLORS[n.teamId]||"#818cf8";
+        const ago=Math.round((Date.now()-n.ts)/60000);
+        return `<div class="quick-note-item">
+          <span class="quick-note-team" style="background:${col}20;color:${col}">${n.teamId||"?"}</span>
+          <span style="flex:1;color:var(--text)">${esc(n.text)}</span>
+          <span style="font-size:10px;color:var(--text3)">${ago<1?"now":ago+"m"}</span>
+          <button onclick="deleteQuickNote('${n.id}')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0">×</button>
+        </div>`;
+      }).join("")}
+    </div>`:""}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QUICK-NOTE HOTBAR
+// ══════════════════════════════════════════════════════════════════════════════
+function renderQuickHotbar(){
+  const ids=teamIds();
+  return `
+  <div id="quick-hotbar">
+    <span style="font-size:13px;flex-shrink:0;color:var(--text3)">⚡</span>
+    <input id="quick-input" placeholder="Quick note — capture anything mid-speech, assign to team…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitQuickNote()}">
+    <select id="quick-team-sel">
+      <option value="">Team?</option>
+      ${ids.map(id=>`<option value="${id}">${id}</option>`).join("")}
+    </select>
+    <button class="btn btn-primary" onclick="submitQuickNote()" style="flex-shrink:0">Add</button>
+    ${S.quickNotes.length?`<span style="font-size:11px;color:var(--text3);flex-shrink:0">${S.quickNotes.length} note${S.quickNotes.length!==1?"s":""}</span>`:""}
+  </div>`;
+}
+function submitQuickNote(){
+  const inp=document.getElementById("quick-input");
+  const sel=document.getElementById("quick-team-sel");
+  const text=(inp?.value||"").trim();
+  if(!text) return;
+  S.quickNotes.push({id:uid(),text,teamId:sel?.value||"",ts:Date.now()});
+  if(inp) inp.value="";
+  // Re-inject hotbar
+  const old=document.getElementById("quick-hotbar");
+  if(old){ const div=document.createElement("div"); div.innerHTML=renderQuickHotbar(); old.replaceWith(div.firstElementChild); }
+  if(S.judgeTab==="flow"){ const c=document.getElementById("content"); if(c) c.innerHTML=renderFlowTab(teamIds()); }
+  showToast("⚡ Note captured","success");
+}
+function deleteQuickNote(id){
+  S.quickNotes=S.quickNotes.filter(n=>n.id!==id);
+  if(S.judgeTab==="flow"){ const c=document.getElementById("content"); if(c) c.innerHTML=renderFlowTab(teamIds()); }
+}
+function updateFlowNote(teamId,spIdx,value){
+  if(S.teams[teamId]?.speakers[spIdx]) S.teams[teamId].speakers[spIdx].flowNotes=value;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UNDO — for argument deletions
+// ══════════════════════════════════════════════════════════════════════════════
+function undoableDeleteArgument(teamId,argId){
+  const arg=S.teams[teamId]?.arguments.find(a=>a.id===argId);
+  if(!arg) return;
+  const idx=S.teams[teamId].arguments.findIndex(a=>a.id===argId);
+  S.undoStack.push({type:"deleteArg",teamId,arg,idx});
+  if(S.undoStack.length>20) S.undoStack.shift();
+  S.teams[teamId].arguments=S.teams[teamId].arguments.filter(a=>a.id!==argId);
+  partialRenderTeams();
+  showUndoToast("Argument deleted","undoDeleteArg");
+}
+function undoDeleteArg(){
+  const entries=S.undoStack.filter(e=>e.type==="deleteArg");
+  if(!entries.length) return;
+  const entry=entries[entries.length-1];
+  S.undoStack=S.undoStack.filter(e=>e!==entry);
+  S.teams[entry.teamId].arguments.splice(entry.idx,0,entry.arg);
+  partialRenderTeams();
+  showToast("↩ Argument restored","success");
+  document.getElementById("undo-toast")?.remove();
+}
+let _undoTimer=null;
+function showUndoToast(label,undoFn){
+  document.getElementById("undo-toast")?.remove();
+  const el=document.createElement("div");
+  el.id="undo-toast";
+  el.innerHTML=`<span style="color:var(--text2);font-size:13px">${label}</span><button onclick="${undoFn}()" style="padding:4px 14px;border-radius:8px;background:var(--accent2);color:var(--accent);border:1.5px solid var(--accent3);font-size:12px;font-weight:700;cursor:pointer">↩ Undo</button><button onclick="this.closest('#undo-toast').remove()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>`;
+  document.body.appendChild(el);
+  clearTimeout(_undoTimer);
+  _undoTimer=setTimeout(()=>document.getElementById("undo-toast")?.remove(),5000);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DELIBERATION MODE
+// ══════════════════════════════════════════════════════════════════════════════
+let _deliberTimer=null;
+function openDeliberation(){
+  const t=document.getElementById("title-input"); if(t) S.sessionTitle=t.value;
+  const m=document.getElementById("motion-input"); if(m) S.motion=m.value;
+  const o=document.getElementById("oa-textarea"); if(o) S.oaNotes=o.value;
+  S.deliberationElapsed=0; S.deliberationRunning=true;
+  stopTimerInterval();
+  document.getElementById("delib-overlay")?.remove();
+  const el=document.createElement("div");
+  el.id="delib-overlay";
+  el.innerHTML=renderDeliberationView();
+  document.body.appendChild(el);
+  clearInterval(_deliberTimer);
+  _deliberTimer=setInterval(()=>{
+    S.deliberationElapsed++;
+    const td=document.getElementById("delib-timer-display");
+    const remaining=Math.max(0,20*60-S.deliberationElapsed);
+    if(td){
+      td.textContent=fmtTime(remaining);
+      td.style.color=remaining<=0?"#ef4444":remaining<=120?"#f59e0b":"#4ade80";
+      td.style.animation=remaining<=0?"blink .8s step-end infinite":"none";
+    }
+    if(S.deliberationElapsed===20*60) showToast("⏰ 20 minutes — time to decide!","warn");
+  },1000);
+}
+function closeDeliberation(){
+  clearInterval(_deliberTimer);
+  document.getElementById("delib-overlay")?.remove();
+  S.deliberationRunning=false;
+}
+function renderDeliberationView(){
+  const ids=teamIds();
+  const rankings=computeRankings(S.teams);
+  const sorted=[...rankings].sort((a,b)=>a.autoRank-b.autoRank);
+  const pairs=[];
+  for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++) pairs.push([ids[i],ids[j]]);
+  const wins={};
+  ids.forEach(id=>wins[id]=0);
+  pairs.forEach(([a,b])=>{
+    const key=[a,b].sort().join("_vs_");
+    const cl=S.clashes[key]||{};
+    if(cl.winner===a) wins[a]++;
+    else if(cl.winner===b) wins[b]++;
+  });
+  const maxTotal=Math.max(...ids.map(id=>S.teams[id]?.speakers.reduce((s,sp)=>s+Number(sp.score||0),0)||0));
+  return `
+  <div class="delib-topbar">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">🔴 Deliberation Mode</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.sessionTitle||S.mode+" Session")}</div>
+      ${S.motion?`<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.motion)}</div>`:""}
+    </div>
+    <div style="text-align:center;flex-shrink:0;padding:0 20px">
+      <div style="font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.5px">TIME LEFT</div>
+      <div id="delib-timer-display" class="delib-timer" style="color:#4ade80">${fmtTime(20*60)}</div>
+      <div style="font-size:10px;color:var(--text3)">20 min limit</div>
+    </div>
+    <button onclick="closeDeliberation()" class="btn btn-danger" style="flex-shrink:0">✕ Exit</button>
+  </div>
+  <div style="padding:20px 24px;max-width:1200px;margin:0 auto">
+    <div style="margin-bottom:20px">
+      <div class="label-xs" style="margin-bottom:10px">Rankings by score</div>
+      <div style="display:grid;grid-template-columns:repeat(${ids.length},1fr);gap:10px">
+        ${sorted.map((r,i)=>{
+          const col=TEAM_COLORS[r.id];
+          const pct=maxTotal>0?Math.round((r.total/maxTotal)*100):0;
+          return `<div style="text-align:center;padding:12px;border-radius:12px;background:${col}10;border:1.5px solid ${col}30">
+            <div style="font-size:20px">${RANK_EMOJI[i]}</div>
+            <div style="font-size:16px;font-weight:800;color:${col}">${r.id}</div>
+            <div style="font-size:22px;font-weight:800">${r.total}</div>
+            <div style="background:var(--bg4);border-radius:4px;height:6px;margin:6px 0;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px"></div></div>
+            <div style="font-size:10px;color:var(--text3)">${wins[r.id]} clash${wins[r.id]!==1?"es":""} won</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(ids.length,2)},1fr);gap:14px;margin-bottom:20px">
+      ${ids.map(tid=>{
+        const t=S.teams[tid]; if(!t) return "";
+        const col=TEAM_COLORS[tid];
+        const total=t.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
+        const ri=rankings.find(r=>r.id===tid);
+        return `<div class="delib-team-col" style="border-top:3px solid ${col}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div><span class="badge" style="background:${col}20;color:${col};border:1px solid ${col}40">${t.abbr}</span><span style="margin-left:8px;font-size:13px;font-weight:700">${t.label}</span></div>
+            <span style="font-size:16px;font-weight:800;color:${col}">Σ${total} #${ri?.autoRank||"?"}</span>
+          </div>
+          ${t.speakers.map(sp=>{
+            const sc=Number(sp.score||75);
+            const scCol=sc>=83?"#22c55e":sc>=73?"#f59e0b":"#ef4444";
+            return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">${esc(sp.name||sp.role)}</span><span style="font-weight:700;color:${scCol}">${sc}</span></div>`;
+          }).join("")}
+          ${t.teamNotes?`<div style="margin-top:8px;font-size:12px;color:var(--text2);line-height:1.55;white-space:pre-wrap">${esc(t.teamNotes)}</div>`:""}
+          ${(t.arguments||[]).length?`<div style="margin-top:10px">${t.arguments.map(a=>{
+            const ac={strong:"#22c55e",medium:"#f59e0b",weak:"#f87171"}[a.strength];
+            const sc={standing:"var(--text2)",rebutted:"#f87171",conceded:"#4ade80",dropped:"var(--text3)"}[a.status];
+            return `<div class="delib-arg-row" style="border-left-color:${ac};background:${ac}08">
+              <span style="font-size:10px;font-weight:700;color:${ac}">${a.strength.toUpperCase()}</span>
+              ${a.tag?`<span style="font-size:10px;color:var(--text3)"> · ${a.tag}</span>`:""}
+              <span style="font-size:10px;color:var(--text3)"> [${a.status}]</span>
+              <div style="margin-top:2px;color:${sc}">${esc(a.text)}</div>
+              ${a.rebuttsArgId?`<div style="font-size:10px;color:var(--accent);margin-top:2px">↩ links to opposing argument</div>`:""}
+            </div>`;
+          }).join("")}</div>`:""}
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="label-xs" style="margin-bottom:10px">Clash outcomes</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:20px">
+      ${pairs.map(([a,b])=>{
+        const key=[a,b].sort().join("_vs_");
+        const cl=S.clashes[key]||{};
+        const wc=cl.winner&&cl.winner!=="Even"?TEAM_COLORS[cl.winner]||"#888":"#888";
+        return `<div style="padding:12px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700"><span style="color:${TEAM_COLORS[a]}">${a}</span> vs <span style="color:${TEAM_COLORS[b]}">${b}</span></span>
+            ${cl.winner?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${wc}20;color:${wc};font-weight:700">${cl.winner==="Even"?"⚖ Even":"→ "+cl.winner}</span>`:`<span style="font-size:10px;color:var(--text3)">undecided</span>`}
+          </div>
+          ${cl.notes?`<div style="font-size:11px;color:var(--text2)">${esc(cl.notes.slice(0,100))}${cl.notes.length>100?"…":""}</div>`:""}
+        </div>`;
+      }).join("")}
+    </div>
+    ${S.oaNotes?`<div class="label-xs" style="margin-bottom:8px">OA Notes</div><div style="background:var(--bg3);border:1.5px solid rgba(129,140,248,0.2);border-radius:10px;padding:14px;font-family:var(--font-mono);font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--text2);margin-bottom:20px">${esc(S.oaNotes)}</div>`:""}
+    ${S.quickNotes.length?`<div class="label-xs" style="margin-bottom:8px">Quick-Captured Notes</div><div style="margin-bottom:20px">${S.quickNotes.map(n=>`<div class="quick-note-item"><span class="quick-note-team" style="background:${TEAM_COLORS[n.teamId]||"#818cf8"}20;color:${TEAM_COLORS[n.teamId]||"#818cf8"}">${n.teamId||"?"}</span><span style="color:var(--text)">${esc(n.text)}</span></div>`).join("")}</div>`:""}
+    <div style="height:40px"></div>
+  </div>`;
+}
+
 function showSaveModal() {
   if (S.saving) return;
   // Flush live DOM
