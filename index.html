@@ -232,7 +232,8 @@ button{cursor:pointer}
 /* ── print styles ── */
 @media print {
   #topbar,#timer-widget,#timer-mini,#quick-hotbar,#delib-overlay,
-  .btn,button,.settings-overlay,.main-tab,.team-tabs-row{display:none!important}
+  .btn,button,.settings-overlay,.main-tab,.team-tabs-row,
+  #key-help-overlay,#split-controls{display:none!important}
   body{background:#fff!important;color:#000!important;font-size:11pt}
   #content{padding:0!important;max-width:100%!important}
   .speaker-card,.arg-card,.note-textarea,.clash-textarea{
@@ -244,6 +245,44 @@ button{cursor:pointer}
   h2{border-bottom:2px solid #000;padding-bottom:4pt}
   @page{margin:1.5cm}
 }
+
+/* ── split view ── */
+#split-root{display:grid;gap:16px;height:calc(100vh - var(--topbar-h,116px));overflow:hidden}
+#split-root.split-active{grid-template-columns:1fr 1fr}
+#split-root.split-inactive{grid-template-columns:1fr}
+.split-panel{overflow-y:auto;overflow-x:hidden;padding:20px 20px 120px;min-width:0}
+.split-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--border)}
+.split-panel-title{font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.6px}
+.split-selector{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:4px 8px;outline:none;cursor:pointer}
+#split-controls{position:sticky;top:0;z-index:50;background:var(--topbar-bg);border-bottom:1px solid var(--border);padding:6px 20px;display:flex;align-items:center;gap:10px;max-width:1440px;margin:0 auto}
+
+/* ── cloud status dot ── */
+#cloud-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .4s;display:inline-block}
+#cloud-dot.online{background:#22c55e;box-shadow:0 0 5px #22c55e80}
+#cloud-dot.offline{background:#ef4444}
+#cloud-dot.unknown{background:#f59e0b;animation:blink 2s ease-in-out infinite}
+#cloud-status-wrap{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);flex-shrink:0;cursor:default}
+
+/* ── OA builder ── */
+.oa-builder{display:flex;flex-direction:column;gap:12px}
+.oa-rank-drop-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;color:var(--text3);font-size:13px;transition:border-color .15s,background .15s}
+.oa-rank-drop-zone.drag-over{border-color:var(--accent);background:var(--accent2)}
+.oa-draggable-team{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg3);cursor:grab;transition:all .15s;user-select:none}
+.oa-draggable-team:active{cursor:grabbing;opacity:.7}
+.oa-draggable-team.dragging{opacity:.4;border-style:dashed}
+.oa-pair-block{background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;padding:14px}
+.oa-pair-label{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;font-weight:700}
+.oa-weight-star{cursor:pointer;font-size:16px;line-height:1;transition:transform .1s;padding:0 1px}
+.oa-weight-star:hover{transform:scale(1.2)}
+
+/* ── key help modal ── */
+#key-help-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.key-help-panel{background:var(--bg2);border:1.5px solid var(--border);border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.7)}
+.key-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);gap:16px}
+.key-row:last-child{border-bottom:none}
+.key-combo{display:flex;gap:4px;flex-shrink:0}
+.key-badge{background:var(--bg4);border:1.5px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;font-family:var(--font-mono);color:var(--text);white-space:nowrap}
+.key-desc{font-size:13px;color:var(--text2)}
 </style>
 </head>
 <body>
@@ -670,9 +709,16 @@ let S = {
   timerElapsed: 0,
   timerMinimized: false,
   quickNotes: [],      // [{id,text,teamId,ts}]
-  undoStack: [],       // [{type,data}] — for undo on deletes
+  undoStack: [],       // [{type,data}]
   deliberationElapsed: 0,
   deliberationRunning: false,
+  splitView: false,    // show two panels side-by-side
+  splitLeft: "flow",   // which panel on the left in split view
+  splitRight: "teams", // which panel on the right in split view
+  oaRanking: [],       // [{teamId}] — drag order for OA builder
+  oaPairwiseNotes: {}, // "A_vs_B" → string
+  showOABuilder: true, // toggle between builder and raw textarea
+  showKeyHelp: false,
 };
 let timerInterval = null;
 
@@ -1114,28 +1160,14 @@ function exportSession(id){
   </div>
 </div></body></html>`;
 
-  // Use html2pdf if available, otherwise open print dialog
-  if (typeof html2pdf !== "undefined") {
-    const opt = {
-      margin: 0,
-      filename: (note.title||"session") + ".pdf",
-      image: { type:"jpeg", quality:0.97 },
-      html2canvas: { scale:2, useCORS:true },
-      jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-    };
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = html;
-    html2pdf().set(opt).from(wrapper.firstChild).save();
-    showToast("📄 Downloading PDF…", "success");
-  } else {
-    // Fallback: open in new tab for print-to-PDF
-    const win = window.open("", "_blank");
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 600);
-    showToast("📄 Print dialog opened — save as PDF", "info");
-  }
+  // Open in new tab and trigger print dialog (works everywhere, including mobile)
+  const win = window.open("", "_blank");
+  if (!win) { showToast("⚠ Pop-up blocked — allow pop-ups and try again", "warn"); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 400);
+  showToast("📄 Print dialog opened — choose 'Save as PDF'", "info");
 }
 async function deleteSession(id){
   if(PREFS.confirmOnDelete && !confirm("Delete this session permanently?")) return;
@@ -1158,20 +1190,70 @@ async function deleteSession(id){
 function renderJudge(){
   const ids=teamIds();
   const rankings=computeRankings(S.teams);
+  if(S.splitView){
+    return `
+    ${renderTopBar(rankings)}
+    ${renderSplitControls()}
+    <div id="split-root" class="split-active" style="max-width:1440px;margin:0 auto">
+      <div class="split-panel" id="split-panel-l">
+        ${renderSplitPanelHeader("left")}
+        ${renderPanel(S.splitLeft,ids,rankings)}
+      </div>
+      <div class="split-panel" id="split-panel-r" style="border-left:1.5px solid var(--border)">
+        ${renderSplitPanelHeader("right")}
+        ${renderPanel(S.splitRight,ids,rankings)}
+      </div>
+    </div>
+    ${renderQuickHotbar()}
+    ${S.showKeyHelp?renderKeyHelp():""}`;
+  }
   return `
   ${renderTopBar(rankings)}
   <div id="content">
-    ${S.judgeTab==="teams"?renderTeamsTab(ids,rankings):""}
-    ${S.judgeTab==="flow"?renderFlowTab(ids):""}
-    ${S.judgeTab==="clash"?renderClashTab(ids,rankings):""}
-    ${S.judgeTab==="oa"?renderOATab(rankings):""}
+    ${renderPanel(S.judgeTab,ids,rankings)}
   </div>
   ${renderQuickHotbar()}
-  `;
+  ${S.showKeyHelp?renderKeyHelp():""}`;
+}
+
+function renderPanel(tab,ids,rankings){
+  if(tab==="teams") return renderTeamsTab(ids,rankings);
+  if(tab==="flow")  return renderFlowTab(ids);
+  if(tab==="clash") return renderClashTab(ids,rankings);
+  if(tab==="oa")    return renderOATab(rankings);
+  return "";
+}
+
+function renderSplitControls(){
+  const opts=[
+    {val:"teams",label:"📝 Teams"},
+    {val:"flow",label:"📊 Flow"},
+    {val:"clash",label:"⚔️ Clash"},
+    {val:"oa",label:"🎤 OA"},
+  ];
+  const sel=(key,val)=>`<select class="split-selector" onchange="S.${key}=this.value;render()">
+    ${opts.map(o=>`<option value="${o.val}" ${val===o.val?"selected":""}>${o.label}</option>`).join("")}
+  </select>`;
+  return `<div id="split-controls">
+    <span style="font-size:11px;color:var(--text3);font-weight:700">LEFT</span>
+    ${sel("splitLeft",S.splitLeft)}
+    <span style="font-size:16px;color:var(--text3)">⇔</span>
+    ${sel("splitRight",S.splitRight)}
+    <span style="font-size:11px;color:var(--text3);font-weight:700">RIGHT</span>
+    <button class="btn" onclick="S.splitView=false;render()" style="margin-left:auto;font-size:11px">✕ Exit split</button>
+  </div>`;
+}
+
+function renderSplitPanelHeader(side){
+  const tab=side==="left"?S.splitLeft:S.splitRight;
+  const labels={teams:"📝 Team Notes",flow:"📊 Flow",clash:"⚔️ Clash Analysis",oa:"🎤 OA Prep"};
+  return `<div class="split-panel-header"><span class="split-panel-title">${labels[tab]||tab}</span></div>`;
 }
 
 // ── TOP BAR ──
 function renderTopBar(rankings){
+  const cdotClass = cloudStatus==="online"?"online":cloudStatus==="offline"?"offline":"unknown";
+  const cdotTitle = cloudStatus==="online"?"Cloud: connected":cloudStatus==="offline"?"Cloud: offline":"Cloud: checking…";
   return `
   <div id="topbar">
     <div id="topbar-inner">
@@ -1179,21 +1261,29 @@ function renderTopBar(rankings){
       <span class="badge" style="background:var(--accent2);color:var(--accent);flex-shrink:0;border:1px solid var(--accent3)">${S.mode}</span>
       <input id="title-input" value="${esc(S.sessionTitle)}" placeholder="Session title…" oninput="S.sessionTitle=this.value">
       <input id="round-input" value="${esc(S.round)}" placeholder="Round #" oninput="S.round=this.value">
+      <div id="cloud-status-wrap" title="${cdotTitle}">
+        <span id="cloud-dot" class="${cdotClass}"></span>
+        <span>${cdotTitle.replace("Cloud: ","")}</span>
+      </div>
+      <button class="btn${S.splitView?" btn-primary":""}" onclick="S.splitView=!S.splitView;render()" style="flex-shrink:0;font-size:11px" title="Toggle split view">⇔ Split</button>
       <button class="btn" onclick="S.view='saved';render()" style="flex-shrink:0">📁</button>
+      <button class="btn-icon" onclick="S.showKeyHelp=!S.showKeyHelp;render()" title="Keyboard shortcuts" style="flex-shrink:0">?</button>
       <button class="btn-icon" onclick="openSettings()" title="Settings" style="flex-shrink:0">⚙️</button>
       <button id="save-btn" class="btn ${S.saveMsg?"btn-success":"btn-primary"}" onclick="saveSession()" style="flex-shrink:0;min-width:76px">${S.saveMsg||"💾 Save"}</button>
     </div>
     ${PREFS.showMotionBar ? `<div id="motion-bar"><input id="motion-input" value="${esc(S.motion)}" placeholder="Motion: This House would / believes / supports…" oninput="S.motion=this.value"></div>` : ""}
-    <div class="tab-bar">
+    ${!S.splitView?`<div class="tab-bar">
       <button class="main-tab ${S.judgeTab==="teams"?"active":""}" onclick="setJudgeTab('teams')">📝 Team Notes</button>
       <button class="main-tab ${S.judgeTab==="flow"?"active":""}" onclick="setJudgeTab('flow')">📊 Flow</button>
       <button class="main-tab ${S.judgeTab==="clash"?"active":""}" onclick="setJudgeTab('clash')">⚔️ Clash</button>
       <button class="main-tab ${S.judgeTab==="oa"?"active":""}" onclick="setJudgeTab('oa')">🎤 OA Prep</button>
       <button class="main-tab" onclick="openDeliberation()" style="margin-left:auto;color:#f472b6">🔴 Deliberate</button>
-    </div>
+    </div>`:`<div class="tab-bar">
+      <button class="main-tab" onclick="openDeliberation()" style="color:#f472b6">🔴 Deliberate</button>
+    </div>`}
   </div>`;
 }
-function setJudgeTab(tab){ S.judgeTab=tab; render(); }
+function setJudgeTab(tab){ S.judgeTab=tab; if(S.splitView){S.splitView=false;} render(); }
 
 // ── TEAMS TAB ──
 function renderTeamsTab(ids,rankings){
@@ -1207,8 +1297,8 @@ function renderTeamsTab(ids,rankings){
         const col=TEAM_COLORS[tid];
         const active=S.activeTeamTab===tid;
         return `<button class="team-tab-btn ${active?"active":""}" onclick="setActiveTeam('${tid}')"
-          style="background:${active?col+"20":"rgba(255,255,255,0.04)"};border-color:${active?col+"50":"rgba(255,255,255,0.08)"};color:${active?col:"rgba(255,255,255,0.5)"}">
-          ${tid} <span style="margin-left:6px;font-size:10px;color:${active?col:"rgba(255,255,255,0.3)"};">#${ri?ri.autoRank:"?"} · ${ri?ri.total:""}</span>
+          style="background:${active?col+"20":"var(--bg3)"};border-color:${active?col+"50":"var(--border)"};color:${active?col:"var(--text2)"}">
+          ${tid}${PREFS.rankingBadgeInTab&&ri?` <span style="margin-left:6px;font-size:10px;color:${active?col:"var(--text3)"}">#${ri.autoRank} · ${ri.total}</span>`:""}
         </button>`;
       }).join("")}
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0">
@@ -1226,16 +1316,16 @@ function renderTeamPanel(team,rankInfo){
   const total=team.speakers.reduce((s,sp)=>s+Number(sp.score||0),0);
   const rankColors=["","#ffd700","#c0c0c0","#cd7f32","#888"];
   return `
-  <div style="background:rgba(255,255,255,0.03);border:1px solid ${col}25;border-top:3px solid ${col};border-radius:14px;overflow:hidden">
-    <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px">
+  <div style="background:var(--card-bg);border:1.5px solid ${col}30;border-top:3px solid ${col};border-radius:14px;overflow:hidden">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <span class="badge" style="background:${col}20;color:${col};border:1px solid ${col}40">${team.abbr}</span>
       <div style="flex:1">
-        <div style="font-size:12px;font-weight:600">${team.label}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${team.bench==="gov"?"Government":"Opposition"} · ${team.half==="opening"?"Opening":"Closing"}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${team.label}</div>
+        <div style="font-size:10px;color:var(--text3)">${team.bench==="gov"?"Government":"Opposition"} · ${team.half==="opening"?"Opening":"Closing"}</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:20px;font-weight:800;color:${col}">Σ ${total}</div>
-        <div style="font-size:10px;color:${rankColors[rankInfo?.autoRank]||"#888"};font-weight:700">${rankInfo?"Rank #"+rankInfo.autoRank:"–"}</div>
+        <div style="font-size:10px;color:${rankColors[rankInfo?.autoRank]||"var(--text3)"};font-weight:700">${rankInfo?"Rank #"+rankInfo.autoRank:"–"}</div>
       </div>
     </div>
     <div style="padding:16px">
@@ -1247,7 +1337,7 @@ function renderTeamPanel(team,rankInfo){
       ${(team.id==="CG"||team.id==="CO")?`
       <div style="margin-bottom:14px">
         <div class="label-xs" style="margin-bottom:6px">Extension / New Ground</div>
-        <textarea class="note-textarea" style="min-height:60px;border-color:rgba(251,191,36,0.15)" oninput="updateTeamField('${team.id}','extension',this.value)" placeholder="What's new? Extension material, new characterizations, unique angles…">${esc(team.extension||"")}</textarea>
+        <textarea class="note-textarea" style="min-height:60px;border-color:rgba(251,191,36,0.25)" oninput="updateTeamField('${team.id}','extension',this.value)" placeholder="What's new? Extension material, new characterizations, unique angles…">${esc(team.extension||"")}</textarea>
       </div>`:""}
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -1256,7 +1346,7 @@ function renderTeamPanel(team,rankInfo){
         </div>
         <div id="args-${team.id}">
           ${(team.arguments||[]).map(arg=>renderArgCard(arg,team.id)).join("")}
-          ${(team.arguments||[]).length===0?`<div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">No arguments tracked — click + Add</div>`:""}
+          ${(team.arguments||[]).length===0?`<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px 0">No arguments tracked — click + Add</div>`:""}
         </div>
       </div>
     </div>
@@ -1266,6 +1356,7 @@ function renderTeamPanel(team,rankInfo){
 function renderSpeakerCard(sp,idx,teamId,col){
   const score=Number(sp.score||75);
   const scoreColor=score>=83?"#22c55e":score>=73?"#f59e0b":score>=64?"#f97316":"#ef4444";
+  const scoreBand=score>=92?"Exceptional":score>=86?"Excellent":score>=79?"Strong":score>=73?"Solid":score>=67?"Average":score>=61?"Weak":"Poor";
   const showScale=S.showScale[sp.id]||false;
   const poisTaken=sp.pois_taken||[];
   const poisOffered=sp.pois_offered||[];
@@ -1274,30 +1365,31 @@ function renderSpeakerCard(sp,idx,teamId,col){
   <div class="speaker-card" style="border-left-color:${col}">
     <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
       <div style="flex:1">
-        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;font-weight:700;letter-spacing:.5px">${sp.role.toUpperCase()}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:700;letter-spacing:.5px">${sp.role.toUpperCase()}</div>
         <input value="${esc(sp.name)}" placeholder="Speaker name…" oninput="updateSpeakerField('${teamId}',${idx},'name',this.value)"
-          style="background:transparent;border:none;color:#fff;font-size:14px;font-weight:600;outline:none;width:100%">
+          style="background:transparent;border:none;color:var(--text);font-size:14px;font-weight:600;outline:none;width:100%">
       </div>
-      <div style="text-align:center;min-width:60px">
+      <div style="text-align:center;min-width:64px">
         <div class="score-display" style="color:${scoreColor}">${score}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.35)">/ 100</div>
+        ${PREFS.showScoreBand?`<div class="score-band" style="background:${scoreColor}20;color:${scoreColor}">${scoreBand}</div>`:`<div style="font-size:10px;color:var(--text3)">/ 100</div>`}
       </div>
     </div>
+    ${PREFS.scoreSliderVisible?`
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <span style="font-size:11px;color:rgba(255,255,255,0.4);min-width:36px">Score</span>
-      <input type="range" min="50" max="100" value="${score}" oninput="updateSpeakerScore('${teamId}',${idx},this.value)"
-        style="flex:1;accent-color:${scoreColor}">
+      <span style="font-size:11px;color:var(--text3);min-width:36px">Score</span>
+      <input type="range" min="50" max="100" value="${score}" oninput="updateSpeakerScore('${teamId}',${idx},this.value)" style="flex:1;accent-color:${scoreColor}">
       <input type="number" min="50" max="100" value="${score}" oninput="updateSpeakerScore('${teamId}',${idx},this.value)"
-        style="width:48px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;text-align:center;padding:2px 4px;outline:none">
-      <button onclick="toggleScale('${sp.id}')" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:13px;padding:0">?</button>
-    </div>
-    ${showScale?`<div class="scale-popup">${SPEAKER_SCALE.map(s=>`<div style="display:flex;gap:8px;margin-bottom:4px;color:rgba(255,255,255,0.7)"><span style="min-width:48px;color:#f59e0b;font-weight:700">${s.r}</span><span>${s.d}</span></div>`).join("")}</div>`:""}
+        style="width:50px;background:var(--bg4);border:1.5px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;text-align:center;padding:2px 4px;outline:none">
+      <button onclick="toggleScale('${sp.id}')" style="background:none;border:none;color:var(--text3);font-size:13px;padding:0">?</button>
+    </div>`:""}
+    ${showScale?`<div class="scale-popup">${SPEAKER_SCALE.map(s=>`<div style="display:flex;gap:8px;margin-bottom:4px;color:var(--text2)"><span style="min-width:48px;color:#f59e0b;font-weight:700">${s.r}</span><span>${s.d}</span></div>`).join("")}</div>`:""}
     <div style="margin-bottom:8px">
-      <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:4px">Speaker notes</div>
-      <textarea class="note-textarea" oninput="updateSpeakerField('${teamId}',${idx},'notes',this.value)" placeholder="Notes on performance, arguments made, POI quality, style…">${esc(sp.notes||"")}</textarea>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Speaker notes</div>
+      <textarea class="note-textarea" oninput="updateSpeakerField('${teamId}',${idx},'notes',this.value)" placeholder="Notes on performance, arguments, POI quality, style…">${esc(sp.notes||"")}</textarea>
     </div>
+    ${PREFS.poiCounterVisible?`
     <div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:6px">POI tracking</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">POI tracking</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${[
           {type:"taken_excellent",label:"✓✓ Excellent",col:"#22c55e"},
@@ -1311,19 +1403,19 @@ function renderSpeakerCard(sp,idx,teamId,col){
         }).join("")}
         ${(poisTaken.length+poisOffered.length)>0?`<button class="poi-btn" style="background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.2)" onclick="clearPOIs('${teamId}',${idx})">clear</button>`:""}
       </div>
-    </div>
+    </div>`:""}
   </div>`;
 }
 
 function renderArgCard(arg,teamId){
-  const statusBg={standing:"rgba(255,255,255,0.08)",rebutted:"rgba(239,68,68,0.15)",conceded:"rgba(34,197,94,0.15)",dropped:"rgba(100,100,100,0.15)"};
-  // Collect all args from OTHER teams for linking
+  const statusBg={standing:"var(--bg4)",rebutted:"rgba(239,68,68,0.12)",conceded:"rgba(34,197,94,0.12)",dropped:"rgba(120,120,120,0.12)"};
   const ids=teamIds();
   const otherArgs=[];
   ids.filter(id=>id!==teamId).forEach(id=>{
     (S.teams[id]?.arguments||[]).forEach(a=>{ if(a.text) otherArgs.push({teamId:id,id:a.id,text:a.text.slice(0,40),col:TEAM_COLORS[id]}); });
   });
   const linkedArg = arg.rebuttsArgId ? otherArgs.find(a=>a.id===arg.rebuttsArgId) : null;
+  const w=Number(arg.weight||0);
   return `
   <div class="arg-card" id="arg-${arg.id}">
     <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;align-items:center">
@@ -1331,16 +1423,20 @@ function renderArgCard(arg,teamId){
         ${["strong","medium","weak"].map(v=>`<option value="${v}" ${arg.strength===v?"selected":""}>${{strong:"💪 Strong",medium:"⚡ Medium",weak:"⚠ Weak"}[v]}</option>`).join("")}
       </select>
       ${PREFS.argTagsVisible?`<select class="arg-select" onchange="updateArgField('${teamId}','${arg.id}','tag',this.value)">${ARGUMENT_TAGS.map(t=>`<option value="${t}" ${arg.tag===t?"selected":""}>${t}</option>`).join("")}</select>`:""}
-      <select class="arg-select" style="background:${statusBg[arg.status]||"rgba(255,255,255,0.08)"}" onchange="updateArgField('${teamId}','${arg.id}','status',this.value)">
+      <select class="arg-select" style="background:${statusBg[arg.status]||"var(--bg4)"}" onchange="updateArgField('${teamId}','${arg.id}','status',this.value)">
         ${["standing","rebutted","conceded","dropped"].map(v=>`<option value="${v}" ${arg.status===v?"selected":""}>${{standing:"Standing",rebutted:"Rebutted",conceded:"Conceded ✓",dropped:"Dropped"}[v]}</option>`).join("")}
       </select>
-      <button onclick="undoableDeleteArgument('${teamId}','${arg.id}')" style="margin-left:auto;background:none;border:none;color:rgba(255,100,100,0.6);font-size:14px;padding:0" title="Delete (undoable)">✕</button>
+      <div style="display:flex;align-items:center;gap:1px;margin-left:2px" title="OA weight — click star to set importance">
+        ${[1,2,3].map(n=>`<span class="oa-weight-star" onclick="updateArgField('${teamId}','${arg.id}','weight',${w===n?0:n})">${n<=w?"★":"☆"}</span>`).join("")}
+      </div>
+      <button onclick="undoableDeleteArgument('${teamId}','${arg.id}')" style="margin-left:auto;background:none;border:none;color:rgba(239,68,68,0.6);font-size:14px;padding:0" title="Delete (undoable)">✕</button>
     </div>
     <textarea class="arg-textarea" oninput="updateArgField('${teamId}','${arg.id}','text',this.value)" placeholder="Argument summary…">${esc(arg.text||"")}</textarea>
     <div class="arg-link-row">
       <span style="font-size:10px;color:var(--text3)">↩ Rebuts:</span>
-      ${linkedArg?`<span class="arg-link-chip" style="background:${linkedArg.col}18;color:${linkedArg.col};border-color:${linkedArg.col}30">${linkedArg.teamId}: ${esc(linkedArg.text)}… <button onclick="updateArgField('${teamId}','${arg.id}','rebuttsArgId',null)" style="background:none;border:none;color:inherit;font-size:11px;cursor:pointer;padding:0;margin-left:2px">×</button></span>`
-      :`<select class="arg-select" style="font-size:10px" onchange="updateArgField('${teamId}','${arg.id}','rebuttsArgId',this.value)"><option value="">Link to opposing arg…</option>${otherArgs.map(a=>`<option value="${a.id}">[${a.teamId}] ${esc(a.text)}…</option>`).join("")}</select>`}
+      ${linkedArg
+        ?`<span class="arg-link-chip" style="background:${linkedArg.col}18;color:${linkedArg.col};border-color:${linkedArg.col}30">${linkedArg.teamId}: ${esc(linkedArg.text)}… <button onclick="updateArgField('${teamId}','${arg.id}','rebuttsArgId',null)" style="background:none;border:none;color:inherit;font-size:11px;cursor:pointer;padding:0;margin-left:2px">×</button></span>`
+        :`<select class="arg-select" style="font-size:10px" onchange="updateArgField('${teamId}','${arg.id}','rebuttsArgId',this.value||null)"><option value="">Link to opposing arg…</option>${otherArgs.map(a=>`<option value="${a.id}">[${a.teamId}] ${esc(a.text)}…</option>`).join("")}</select>`}
     </div>
   </div>`;
 }
@@ -1485,41 +1581,179 @@ function renderBenchAnalysis(rankings){
 // ── OA TAB ──
 function renderOATab(rankings){
   const sorted=[...rankings].sort((a,b)=>a.autoRank-b.autoRank);
+  const ids=teamIds();
+
+  // Initialise OA ranking order if empty
+  if(!S.oaRanking||S.oaRanking.length!==ids.length){
+    S.oaRanking=sorted.map(r=>r.id);
+  }
+
+  // Pairs for pairwise notes
+  const pairs=[];
+  for(let i=0;i<S.oaRanking.length;i++)
+    for(let j=i+1;j<S.oaRanking.length;j++)
+      pairs.push([S.oaRanking[i],S.oaRanking[j]]);
+
+  // Collect starred/weighted args per team
+  const weightedArgs={};
+  ids.forEach(tid=>{
+    weightedArgs[tid]=(S.teams[tid]?.arguments||[])
+      .filter(a=>Number(a.weight||0)>0)
+      .sort((a,b)=>Number(b.weight||0)-Number(a.weight||0));
+  });
+  const anyWeighted=ids.some(id=>weightedArgs[id].length>0);
+
   return `
   <div class="slide-in">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600">OA Preparation &amp; Ranking Summary</div>
-      <button class="btn btn-primary" onclick="generateOATemplate()">✨ Auto-generate template</button>
+    <!-- Toggle builder vs freetext -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;color:var(--text)">OA Preparation</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn${S.showOABuilder?" btn-primary":""}" onclick="S.showOABuilder=true;reRenderOA()">🏗 Builder</button>
+        <button class="btn${!S.showOABuilder?" btn-primary":""}" onclick="S.showOABuilder=false;reRenderOA()">📝 Script</button>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:20px">
-      ${sorted.map((r,i)=>{
-        const t=S.teams[r.id], col=TEAM_COLORS[r.id];
-        return `<div class="oa-rank-card" style="background:${col}10;border:1px solid ${col}30">
-          <div style="font-size:20px">${RANK_EMOJI[i]}</div>
-          <div style="font-size:16px;font-weight:800;color:${col};margin-top:4px">${r.id}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${t?.label||""}</div>
-          <div style="font-size:22px;font-weight:800;margin-top:6px">${r.total}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.3)">combined pts</div>
+
+    ${S.showOABuilder ? `
+    <!-- ── OA BUILDER ── -->
+
+    <!-- Weighted args surfaced -->
+    ${anyWeighted?`
+    <div style="margin-bottom:20px;background:var(--accent2);border:1.5px solid var(--accent3);border-radius:12px;padding:14px">
+      <div class="label-xs" style="color:var(--accent);margin-bottom:10px">⭐ Key Arguments (decide this debate)</div>
+      ${ids.map(tid=>{
+        const wa=weightedArgs[tid]; if(!wa.length) return "";
+        const col=TEAM_COLORS[tid];
+        return `<div style="margin-bottom:8px">
+          <span class="badge" style="background:${col}20;color:${col};border:1px solid ${col}40;margin-bottom:4px">${tid}</span>
+          ${wa.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;color:var(--text)">
+            <span style="color:#f59e0b">${"★".repeat(Number(a.weight||0))}</span>
+            <span style="color:${{standing:"var(--text)",rebutted:"#f87171",conceded:"#4ade80",dropped:"var(--text3)"}[a.status]}">${esc(a.text.slice(0,80))||"(no text)"}</span>
+            <span style="font-size:10px;color:var(--text3)">[${a.status}]</span>
+          </div>`).join("")}
+        </div>`;
+      }).join("")}
+    </div>`:""}
+
+    <!-- Score rankings summary -->
+    <div style="margin-bottom:16px">
+      <div class="label-xs" style="margin-bottom:8px">Scores (drag to set your ranking order)</div>
+      <div style="display:grid;grid-template-columns:repeat(${ids.length},1fr);gap:8px;margin-bottom:12px">
+        ${sorted.map((r,i)=>{
+          const col=TEAM_COLORS[r.id];
+          return `<div style="text-align:center;padding:10px;border-radius:10px;background:${col}10;border:1.5px solid ${col}25">
+            <div style="font-size:18px">${RANK_EMOJI[i]||""}</div>
+            <div style="font-size:14px;font-weight:800;color:${col}">${r.id}</div>
+            <div style="font-size:18px;font-weight:800;color:var(--text)">${r.total}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <!-- Drag-and-drop ranking -->
+    <div style="margin-bottom:20px">
+      <div class="label-xs" style="margin-bottom:8px">Your Ranking (drag to reorder)</div>
+      <div id="oa-rank-list">
+        ${S.oaRanking.map((tid,i)=>{
+          const col=TEAM_COLORS[tid];
+          const t=S.teams[tid];
+          return `<div class="oa-draggable-team" draggable="true"
+            id="oarank-${tid}"
+            ondragstart="oaDragStart(event,'${tid}')"
+            ondragover="oaDragOver(event)"
+            ondrop="oaDrop(event,'${tid}')"
+            ondragend="oaDragEnd(event)"
+            style="border-color:${col}40">
+            <span style="font-size:20px;min-width:28px;text-align:center">${RANK_EMOJI[i]||i+1}</span>
+            <span class="badge" style="background:${col}20;color:${col};border:1px solid ${col}40">${tid}</span>
+            <span style="font-size:12px;color:var(--text2)">${t?.label||""}</span>
+            <span style="margin-left:auto;font-size:18px;font-weight:800;color:${col}">${(t?.speakers||[]).reduce((s,sp)=>s+Number(sp.score||0),0)}</span>
+            <span style="color:var(--text3);font-size:16px;cursor:grab">⠿</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <!-- Pairwise comparison notes -->
+    <div style="margin-bottom:20px">
+      <div class="label-xs" style="margin-bottom:8px">Pairwise Comparisons (${pairs.length} required)</div>
+      ${pairs.map(([a,b],i)=>{
+        const pkey=[a,b].sort().join("_vs_");
+        const clashData=S.clashes[pkey]||{};
+        const colA=TEAM_COLORS[a],colB=TEAM_COLORS[b];
+        const note=S.oaPairwiseNotes[pkey]||"";
+        const clashWinner=clashData.winner;
+        return `<div class="oa-pair-block" style="margin-bottom:10px">
+          <div class="oa-pair-label">
+            <span style="font-size:11px;color:var(--text3);min-width:20px">#${i+1}</span>
+            <span style="color:${colA};font-weight:800">${a}</span>
+            <span style="color:var(--text3);font-size:11px">vs</span>
+            <span style="color:${colB};font-weight:800">${b}</span>
+            ${clashWinner?`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${TEAM_COLORS[clashWinner]||"#888"}20;color:${TEAM_COLORS[clashWinner]||"#888"};font-weight:700;margin-left:4px">Clash: ${clashWinner==="Even"?"⚖ Even":"→ "+clashWinner}</span>`:""}
+            ${note?`<span style="margin-left:auto;font-size:10px;color:#22c55e">✓ noted</span>`:`<span style="margin-left:auto;font-size:10px;color:var(--text3)">pending</span>`}
+          </div>
+          <textarea class="clash-textarea" style="min-height:56px"
+            oninput="S.oaPairwiseNotes['${pkey}']=this.value"
+            placeholder="Why does ${a} beat ${b} (or vice versa)? What were the decisive arguments?"
+          >${esc(note)}</textarea>
         </div>`;
       }).join("")}
     </div>
-    <div class="label-xs" style="margin-bottom:8px">OA Notes &amp; Script</div>
-    <textarea id="oa-textarea" oninput="S.oaNotes=this.value" placeholder="Write your OA here — structure, key comparisons, advice for teams…">${esc(S.oaNotes)}</textarea>
-    <div style="margin-top:16px;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.15);border-radius:10px;padding:14px">
+
+    <!-- Checklist -->
+    ${PREFS.showOAChecklist?`
+    <div style="background:rgba(251,191,36,0.05);border:1.5px solid rgba(251,191,36,0.18);border-radius:10px;padding:14px">
       <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:8px">📋 OA CHECKLIST</div>
-      ${[
-        "Announce ranking clearly at the start",
-        "Cover ALL pairwise comparisons (min 6 for BP)",
-        "Identify specific arguments — avoid vague adjectives",
-        "Explain why stronger arguments beat weaker ones",
-        "Separate advice from decision reasons",
-        "Note any split decisions and which comparisons were voted on",
-        "Invite teams for post-round feedback",
-        "Stay within 10–15 minutes",
-      ].map(item=>`<div style="display:flex;gap:8px;margin-bottom:4px;font-size:12px;color:rgba(255,255,255,0.6)"><span style="color:#fbbf24">□</span>${item}</div>`).join("")}
+      ${["Announce ranking clearly at the start",
+         "Cover ALL pairwise comparisons (min "+pairs.length+" for "+S.mode+")",
+         "Identify specific arguments — avoid vague adjectives",
+         "Explain why stronger arguments beat weaker ones",
+         "Separate advice from decision reasons",
+         "Note any split decisions and how they were resolved",
+         "Invite teams for post-round feedback",
+         "Stay within 10–15 minutes",
+      ].map((item,i)=>{
+        const done = i===0||(i===1&&pairs.every(([a,b])=>S.oaPairwiseNotes[[a,b].sort().join("_vs_")]));
+        return `<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text2)">
+          <span style="color:${done?"#22c55e":"#fbbf24"}">${done?"☑":"□"}</span>${item}
+        </div>`;
+      }).join("")}
+    </div>`:""}`
+
+    : /* Script mode */ `
+    <!-- ── SCRIPT MODE ── -->
+    <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="generateOATemplate()" style="font-size:11px">✨ Auto-fill from builder</button>
     </div>
+    <div class="label-xs" style="margin-bottom:8px">OA Script (free text)</div>
+    <textarea id="oa-textarea" oninput="S.oaNotes=this.value" placeholder="Write your OA script here…">${esc(S.oaNotes)}</textarea>
+    `}
   </div>`;
 }
+
+function reRenderOA(){
+  if(S.splitView) render();
+  else {
+    const c=document.getElementById("content");
+    if(c){ const rankings=computeRankings(S.teams); c.innerHTML=renderOATab(rankings); }
+  }
+}
+
+// Drag-and-drop for OA ranking list
+let _oaDragId=null;
+function oaDragStart(e,tid){ _oaDragId=tid; e.currentTarget.classList.add("dragging"); e.dataTransfer.effectAllowed="move"; }
+function oaDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect="move"; }
+function oaDrop(e,targetId){
+  e.preventDefault();
+  if(!_oaDragId||_oaDragId===targetId) return;
+  const fromIdx=S.oaRanking.indexOf(_oaDragId);
+  const toIdx=S.oaRanking.indexOf(targetId);
+  if(fromIdx<0||toIdx<0) return;
+  S.oaRanking.splice(fromIdx,1);
+  S.oaRanking.splice(toIdx,0,_oaDragId);
+  reRenderOA();
+}
+function oaDragEnd(e){ e.currentTarget.classList.remove("dragging"); _oaDragId=null; }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MUTATION HANDLERS (called from inline event handlers)
@@ -1634,6 +1868,7 @@ function renderFlowTab(ids){
             <div style="font-size:10px;font-weight:800;color:${col};letter-spacing:.5px">${sp.teamId}</div>
             <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:1px">${sp.label}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px">${spData?.name||"Speaker "+(sp.spIdx+1)} · ${spData?.score||75}pts</div>
+            ${spData?.flowNotes?`<button onclick="pushFlowToNotes('${sp.teamId}',${sp.spIdx})" style="margin-top:6px;font-size:10px;padding:2px 8px;border-radius:8px;background:var(--accent2);color:var(--accent);border:1px solid var(--accent3);cursor:pointer;font-weight:700">↓ Push to speaker notes</button>`:""}
           </div>
           <textarea class="flow-note" rows="8"
             oninput="updateFlowNote('${sp.teamId}',${sp.spIdx},this.value)"
@@ -1669,23 +1904,7 @@ function renderFlowTab(ids){
   </div>`;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// QUICK-NOTE HOTBAR
-// ══════════════════════════════════════════════════════════════════════════════
-function renderQuickHotbar(){
-  const ids=teamIds();
-  return `
-  <div id="quick-hotbar">
-    <span style="font-size:13px;flex-shrink:0;color:var(--text3)">⚡</span>
-    <input id="quick-input" placeholder="Quick note — capture anything mid-speech, assign to team…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitQuickNote()}">
-    <select id="quick-team-sel">
-      <option value="">Team?</option>
-      ${ids.map(id=>`<option value="${id}">${id}</option>`).join("")}
-    </select>
-    <button class="btn btn-primary" onclick="submitQuickNote()" style="flex-shrink:0">Add</button>
-    ${S.quickNotes.length?`<span style="font-size:11px;color:var(--text3);flex-shrink:0">${S.quickNotes.length} note${S.quickNotes.length!==1?"s":""}</span>`:""}
-  </div>`;
-}
+// ── Quick note edit/reassign ──────────────────────────────────────────────────
 function submitQuickNote(){
   const inp=document.getElementById("quick-input");
   const sel=document.getElementById("quick-team-sel");
@@ -1693,18 +1912,158 @@ function submitQuickNote(){
   if(!text) return;
   S.quickNotes.push({id:uid(),text,teamId:sel?.value||"",ts:Date.now()});
   if(inp) inp.value="";
-  // Re-inject hotbar
   const old=document.getElementById("quick-hotbar");
-  if(old){ const div=document.createElement("div"); div.innerHTML=renderQuickHotbar(); old.replaceWith(div.firstElementChild); }
+  if(old){ const div=document.createElement("div"); div.innerHTML=renderQuickHotbar(); while(div.firstElementChild) old.parentNode.insertBefore(div.firstElementChild,old); old.remove(); }
   if(S.judgeTab==="flow"){ const c=document.getElementById("content"); if(c) c.innerHTML=renderFlowTab(teamIds()); }
   showToast("⚡ Note captured","success");
 }
 function deleteQuickNote(id){
   S.quickNotes=S.quickNotes.filter(n=>n.id!==id);
   if(S.judgeTab==="flow"){ const c=document.getElementById("content"); if(c) c.innerHTML=renderFlowTab(teamIds()); }
+  // refresh list panel if open
+  const old=document.getElementById("quick-hotbar");
+  if(old&&S._showQNList){ const div=document.createElement("div"); div.innerHTML=renderQuickHotbar(); while(div.firstElementChild) old.parentNode.insertBefore(div.firstElementChild,old); old.remove(); }
 }
-function updateFlowNote(teamId,spIdx,value){
-  if(S.teams[teamId]?.speakers[spIdx]) S.teams[teamId].speakers[spIdx].flowNotes=value;
+function pushFlowToNotes(teamId,spIdx){
+  const sp=S.teams[teamId]?.speakers[spIdx];
+  if(!sp||!sp.flowNotes) return;
+  const existing=sp.notes||"";
+  sp.notes=(existing?existing+"\n\n--- Flow notes ---\n":"")+sp.flowNotes;
+  showToast("↓ Flow notes pushed to speaker notes","success");
+  if(S.judgeTab==="teams"&&S.activeTeamTab===teamId) partialRenderTeams();
+}
+function renderQuickHotbar(){
+  const ids=teamIds();
+  const teamColors=TEAM_COLORS;
+  return `
+  <div id="quick-hotbar">
+    <span style="font-size:13px;flex-shrink:0;color:var(--text3)">⚡</span>
+    <input id="quick-input" placeholder="Quick note — press Enter to capture…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitQuickNote()}">
+    <select id="quick-team-sel">
+      <option value="">Team?</option>
+      ${ids.map(id=>`<option value="${id}">${id}</option>`).join("")}
+    </select>
+    <button class="btn btn-primary" onclick="submitQuickNote()" style="flex-shrink:0">Add</button>
+    ${S.quickNotes.length?`<span style="font-size:11px;color:var(--text3);flex-shrink:0;cursor:pointer" onclick="toggleQuickNotesList()">${S.quickNotes.length} note${S.quickNotes.length!==1?"s":""} ▾</span>`:""}
+  </div>
+  ${S._showQNList&&S.quickNotes.length?`
+  <div id="quick-notes-list" style="position:fixed;bottom:52px;left:0;right:0;z-index:8887;background:var(--bg2);border-top:1.5px solid var(--border);max-height:260px;overflow-y:auto;padding:10px 20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span class="label-xs" style="margin:0">Quick notes (click to edit/reassign)</span>
+      <button onclick="S.quickNotes=[];toggleQuickNotesList()" style="font-size:11px;background:none;border:none;color:var(--text3);cursor:pointer">Clear all</button>
+    </div>
+    ${S.quickNotes.map(n=>{
+      const col=TEAM_COLORS[n.teamId]||"#818cf8";
+      const ago=Math.round((Date.now()-n.ts)/60000);
+      return `<div class="quick-note-item" id="qn-${n.id}">
+        <span class="quick-note-team" style="background:${col}20;color:${col}">${n.teamId||"?"}</span>
+        <input value="${esc(n.text)}" oninput="updateQuickNote('${n.id}','text',this.value)"
+          style="flex:1;background:transparent;border:none;color:var(--text);font-size:12px;outline:none;min-width:0">
+        <select onchange="updateQuickNote('${n.id}','teamId',this.value)"
+          style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:2px 6px;outline:none">
+          <option value="">Team?</option>
+          ${ids.map(id=>`<option value="${id}" ${n.teamId===id?"selected":""}>${id}</option>`).join("")}
+        </select>
+        <span style="font-size:10px;color:var(--text3);flex-shrink:0">${ago<1?"now":ago+"m ago"}</span>
+        <button onclick="deleteQuickNote('${n.id}')" style="background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:0;flex-shrink:0">×</button>
+      </div>`;
+    }).join("")}
+  </div>`:""}`;
+}
+
+function toggleQuickNotesList(){
+  S._showQNList=!S._showQNList;
+  const old=document.getElementById("quick-hotbar");
+  if(old){ const div=document.createElement("div"); div.innerHTML=renderQuickHotbar(); while(div.firstElementChild){ old.parentNode.insertBefore(div.firstElementChild,old); } old.remove(); }
+}
+
+function updateQuickNote(id,field,value){
+  const note=S.quickNotes.find(n=>n.id===id);
+  if(note){ note[field]=value; }
+  // Re-render the list item inline
+  const el=document.getElementById(`qn-${id}`);
+  if(el&&field==="teamId"){
+    const col=TEAM_COLORS[value]||"#818cf8";
+    const badge=el.querySelector(".quick-note-team");
+    if(badge){ badge.style.background=col+"20"; badge.style.color=col; badge.textContent=value||"?"; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════════════════════════════
+function renderKeyHelp(){
+  const rows=[
+    [["Ctrl","S"],"Save session"],
+    [["Ctrl","Enter"],"Submit quick note"],
+    [["1"],S.mode==="BP"?"Switch to OG":"Switch to GOV"],
+    [["2"],S.mode==="BP"?"Switch to OO":"Switch to OPP"],
+    [["3"],S.mode==="BP"?"Switch to CG":"—"],
+    [["4"],S.mode==="BP"?"Switch to CO":"—"],
+    [["T"],"Team Notes tab"],
+    [["F"],"Flow tab"],
+    [["C"],"Clash tab"],
+    [["O"],"OA Prep tab"],
+    [["Space"],"Start / pause timer"],
+    [["R"],"Reset timer"],
+    [["D"],"Open Deliberation mode"],
+    [["\\\\"],"Toggle split view"],
+    [["?"],"Close this help"],
+    [["Esc"],"Close this help / modals"],
+  ];
+  return `
+  <div id="key-help-overlay" onclick="if(event.target.id==='key-help-overlay'){S.showKeyHelp=false;render()}">
+    <div class="key-help-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:17px;font-weight:800">Keyboard Shortcuts</div>
+        <button onclick="S.showKeyHelp=false;render()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1">×</button>
+      </div>
+      ${rows.map(([keys,desc])=>`
+      <div class="key-row">
+        <span class="key-desc">${desc}</span>
+        <div class="key-combo">${keys.map(k=>`<span class="key-badge">${k}</span>`).join('<span style="color:var(--text3);font-size:11px;padding:0 2px">+</span>')}</div>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+// Keyboard handler — installed once at init
+function initKeyboardShortcuts(){
+  document.addEventListener("keydown", e => {
+    // Never fire when typing in an input/textarea
+    const tag=(e.target.tagName||"").toLowerCase();
+    const typing=tag==="input"||tag==="textarea"||tag==="select"||e.target.isContentEditable;
+
+    // Ctrl+S always
+    if(e.ctrlKey&&e.key==="s"){ e.preventDefault(); if(S.view==="judge") saveSession(); return; }
+    // Ctrl+Enter — submit quick note
+    if(e.ctrlKey&&e.key==="Enter"){ e.preventDefault(); if(S.view==="judge") submitQuickNote(); return; }
+
+    if(typing) return; // all other shortcuts skip when typing
+
+    if(S.view!=="judge") return;
+
+    const tid=teamIds();
+    switch(e.key){
+      case "1": if(tid[0]) setActiveTeam(tid[0]); break;
+      case "2": if(tid[1]) setActiveTeam(tid[1]); break;
+      case "3": if(tid[2]) setActiveTeam(tid[2]); break;
+      case "4": if(tid[3]) setActiveTeam(tid[3]); break;
+      case "t": case "T": setJudgeTab("teams"); break;
+      case "f": case "F": setJudgeTab("flow");  break;
+      case "c": case "C": setJudgeTab("clash"); break;
+      case "o": case "O": setJudgeTab("oa");    break;
+      case " ": e.preventDefault(); timerToggle(); break;
+      case "r": case "R": timerReset(); break;
+      case "d": case "D": openDeliberation(); break;
+      case "\\": S.splitView=!S.splitView; render(); break;
+      case "?": S.showKeyHelp=!S.showKeyHelp; render(); break;
+      case "Escape":
+        if(S.showKeyHelp){ S.showKeyHelp=false; render(); }
+        else { document.getElementById("save-modal")?.remove(); document.getElementById("settings-overlay")?.remove(); }
+        break;
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2137,6 +2496,7 @@ window.addEventListener("pagehide", saveDraft);
 window.addEventListener("beforeunload", saveDraft);
 
 loadSaved(); // sync cloud in background
+initKeyboardShortcuts(); // register keyboard shortcuts once
 </script>
 </body>
 </html>
