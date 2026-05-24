@@ -919,10 +919,12 @@ function startNewSession(mode){
   S.oaNotes=""; S.clashes={}; S.editingId=null;
   S.sessionTitle=`${mode} Session — ${new Date().toLocaleDateString()}`;
   S.motion=""; S.round="";
+  S.quickNotes=[]; S.undoStack=[];
   S.activeTeamTab=mode==="BP"?"OG":"GOV";
-  S.judgeTab="teams";
+  S.judgeTab=PREFS.defaultTab||"teams";
   S.showScale={};
   S.timerPhase="prep"; timerReset();
+  if(PREFS.timerAutoStart){ S.timerRunning=true; startTimerInterval(); }
   S.view="judge";
   render();
 }
@@ -930,8 +932,10 @@ function loadSession(note){
   S.mode=note.mode; S.teams=note.teams; S.oaNotes=note.oaNotes||"";
   S.clashes=note.clashes||{}; S.sessionTitle=note.title;
   S.motion=note.motion||""; S.round=note.round||""; S.editingId=note.id;
+  S.quickNotes=note.quickNotes||[];
   S.activeTeamTab=note.mode==="BP"?"OG":"GOV";
-  S.judgeTab="teams"; S.showScale={};
+  S.judgeTab=note.mode==="BP"?PREFS.defaultTab||"teams":PREFS.defaultTab||"teams";
+  S.showScale={}; S.undoStack=[];
   S.timerPhase="prep"; timerReset();
   S.view="judge";
   render();
@@ -1937,6 +1941,7 @@ async function doSave(target) {
     teams:       S.teams,
     oaNotes:     S.oaNotes,
     clashes:     S.clashes,
+    quickNotes:  S.quickNotes,
     rankings:    rankings.map(r=>({id:r.id, total:r.total, autoRank:r.autoRank})),
     savedAt:     now,
     created_at:  now,
@@ -2017,6 +2022,7 @@ function saveDraft() {
       round: S.round, teams: S.teams, oaNotes: S.oaNotes,
       clashes: S.clashes, editingId: S.editingId,
       activeTeamTab: S.activeTeamTab, judgeTab: S.judgeTab,
+      quickNotes: S.quickNotes,
       ts: Date.now(),
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -2048,6 +2054,7 @@ function restoreDraft() {
     S.teams = d.teams || (d.mode === "AP" ? defaultAPSession() : defaultBPSession());
     S.oaNotes = d.oaNotes || "";
     S.clashes = d.clashes || {};
+    S.quickNotes = d.quickNotes || [];
     S.editingId = d.editingId || null;
     S.activeTeamTab = d.activeTeamTab || (d.mode === "AP" ? "GOV" : "OG");
     S.judgeTab = d.judgeTab || "teams";
@@ -2102,6 +2109,7 @@ try { S.savedNotes = JSON.parse(localStorage.getItem("adj_sessions") || "[]"); }
       S.teams         = d.teams || (d.mode === "AP" ? defaultAPSession() : defaultBPSession());
       S.oaNotes       = d.oaNotes || "";
       S.clashes       = d.clashes || {};
+      S.quickNotes    = d.quickNotes || [];
       S.editingId     = d.editingId || null;
       S.activeTeamTab = d.activeTeamTab || (d.mode === "AP" ? "GOV" : "OG");
       S.judgeTab      = d.judgeTab || "teams";
